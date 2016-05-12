@@ -52,6 +52,12 @@
 	  canvas.height = $(document).height();
 	  var gameview = new GameView(canvas);
 	  gameview.start();
+	  // var ctx = canvas.getContext("2d");
+	  // ctx.font = "30px Roboto";
+	  // ctx.fillText("Press Enter to start", canvas.width/2 - 120, canvas.height/2);
+	  // $(document).keypress("enter", function(){
+	  //   gameview.start();
+	  // });
 	});
 
 
@@ -65,8 +71,7 @@
 	
 	function GameView(canvas) {
 	  this.ctx = canvas.getContext("2d");
-	  this.bird = new Bird([canvas.width/2, 0],
-	    canvas.width, canvas.height);
+	  this.bird = new Bird([canvas.width/2, 0], canvas.width, canvas.height);
 	  this.game = new Game(canvas.width, canvas.height, this.bird);
 	}
 	
@@ -76,6 +81,8 @@
 	  setInterval(function() {
 	    self.game.step();
 	    self.game.draw(self.ctx);
+	    self.updateDeathToll(self.game.getDeathToll());
+	    self.updateLivesSaved(self.game.getNumOfLivesSaved());
 	  }, 50);
 	};
 	
@@ -96,6 +103,14 @@
 	  key('right, d', function() {
 	    self.bird.moveRight();
 	  });
+	};
+	
+	GameView.prototype.updateDeathToll = function(num) {
+	  $("#death-toll").text("Deathtoll: " + num);
+	};
+	
+	GameView.prototype.updateLivesSaved = function(num) {
+	  $("#lives-saved").text("Lives saved: " + num);
 	};
 	
 	module.exports = GameView;
@@ -119,16 +134,20 @@
 	  this.pedestrians = [];
 	  this.bird = bird;
 	  this.addMeteorites();
-	  this.addPeople();
+	  this.deadCount = 0;
+	  this.saveCount = 0;
 	  this.background = new Background(canvasWidth, canvasHeight);
 	}
 	
 	Game.prototype.step = function() {
 	  this.checkGroundCollisions();
 	  this.checkSkyCollisions();
+	  this.checkCollisionOnPedestrians();
 	  this.addMeteorites();
+	  this.addPeople();
 	  this.accelObjects();
 	  this.moveObjects();
+	  this.updateSafetyStatus();
 	  this.bird.wrapIfHittingWall();
 	};
 	
@@ -137,16 +156,12 @@
 	  ctx.clearRect(0, 0, this.DIM_X, this.DIM_Y);
 	
 	  grd = ctx.createLinearGradient(150.000, 0.000, 150.000, 300.000);
-	
-	  // Add colors
 	  grd.addColorStop(0.000, 'rgba(0, 88, 242, 1.000)');
 	  grd.addColorStop(1.000, 'rgba(0, 179, 224, 1.000)');
-	
-	  // Fill with gradient
 	  ctx.fillStyle = grd;
 	  ctx.fillRect(0, 0, this.DIM_X, this.DIM_Y);
 	
-	   this.background.drawGrassyGround(ctx);
+	  this.background.drawGrassyGround(ctx);
 	
 	  i = this.meteorites.length - 1;
 	  while (i >= 0) {
@@ -170,9 +185,13 @@
 	
 	  i = this.pedestrians.length - 1;
 	  while (i >= 0) {
-	    if (this.pedestrians[i].isAlive()) {
+	    if (this.pedestrians[i].isAlive() && this.pedestrians[i].isSaved()) {
+	      this.saveCount += 1;
+	      this.pedestrians.splice(i, 1);
+	    } else if (this.pedestrians[i].isAlive()) {
 	      this.pedestrians[i].draw(ctx);
 	    } else {
+	      this.deadCount += 1;
 	      this.pedestrians.splice(i, 1);
 	    }
 	    i -= 1;
@@ -181,13 +200,13 @@
 	  this.bird.draw(ctx);
 	};
 	
-	// Game.prototype.spawnWalkingPeople = function() {
-	//   var odds = 10;
-	//   if (Math.floor(Math.random()*odds) === Math.floor(Math.random()*odds)) {
-	//     this.pedestrians.push(new Pedestrian([0, this.DIM_Y], this.DIM_X, this.DIM_Y));
-	//   }
-	// };
+	Game.prototype.getDeathToll = function() {
+	  return this.deadCount;
+	};
 	
+	Game.prototype.getNumOfLivesSaved = function() {
+	  return this.saveCount;
+	};
 	
 	Game.prototype.addMeteorites = function() {
 	  while (this.meteorites.length < 5) {
@@ -196,8 +215,9 @@
 	};
 	
 	Game.prototype.addPeople = function() {
-	  while (this.pedestrians.length < 2) {
-	    this.pedestrians.push(new Pedestrian([0, this.DIM_Y], this.DIM_X, this.DIM_Y));
+	  while (this.pedestrians.length < 5) {
+	    this.pedestrians.push(new Pedestrian([Math.random()*(-this.DIM_X), this.DIM_Y - 50],
+	      this.DIM_X, this.DIM_Y));
 	  }
 	};
 	
@@ -241,6 +261,10 @@
 	  return [randx, 0];
 	};
 	
+	Game.prototype.allObjects = function() {
+	  return [].concat(this.meteorites, this.bird);
+	};
+	
 	Game.prototype.checkGroundCollisions = function() {
 	  for (var i = 0; i < this.meteorites.length; i++) {
 	    if (this.meteorites[i].isCollidedWithGround() && this.meteorites[i].isActive()) {
@@ -250,10 +274,6 @@
 	      this.meteorites[i].setInactive();
 	    }
 	  }
-	};
-	
-	Game.prototype.allObjects = function() {
-	  return [].concat(this.meteorites, this.bird);
 	};
 	
 	Game.prototype.checkSkyCollisions = function() {
@@ -266,6 +286,26 @@
 	      }
 	    }
 	  }
+	};
+	
+	Game.prototype.checkCollisionOnPedestrians = function() {
+	
+	  for (var i = 0; i < this.pedestrians.length; i++) {
+	    for (var j = 0; j < this.meteorites.length; j++) {
+	      if (this.pedestrians[i].isCollidedWith(this.meteorites[j])) {
+	        console.log("it's checking");
+	        this.addSkyExplosion(this.pedestrians[i].getPosition());
+	        this.meteorites[j].setInactive();
+	        this.pedestrians[i].setDead();
+	      }
+	    }
+	  }
+	};
+	
+	Game.prototype.updateSafetyStatus = function() {
+	  this.pedestrians.forEach(function(person) {
+	    person.updateSafetyStatus();
+	  });
 	};
 	
 	
@@ -1025,6 +1065,7 @@
 	  this.spriteImage.src = "./rsc/image/pedestrian.png";
 	
 	  this.alive = true;
+	  this.safety = false;
 	  this.sx = 0;
 	  this.isFacingLeft = false;
 	}
@@ -1034,7 +1075,7 @@
 	Pedestrian.prototype.draw = function(context) {
 	  var orientedPerson = this.orientateAndCache(this.spriteImage);
 	  context.drawImage(orientedPerson, 0, 0, this.width, this.height,
-	    this.pos[0] - (this.width/4), this.pos[1] - (this.height/4) - 50, this.width/4, this.height/4);
+	    this.pos[0] - (this.width/4), this.pos[1] - (this.height/4), this.width/4, this.height/4);
 	};
 	
 	var _fullWidth = 1472;
@@ -1059,8 +1100,35 @@
 	  return offscreenCanvas;
 	};
 	
+	Pedestrian.prototype.setDead = function() {
+	  this.alive = false;
+	};
+	
+	Pedestrian.prototype.setSafety = function() {
+	  this.safety = true;
+	};
+	
 	Pedestrian.prototype.isAlive = function() {
 	  return this.alive;
+	};
+	
+	Pedestrian.prototype.isSaved = function() {
+	  return this.safety;
+	};
+	
+	Pedestrian.prototype.isCollidedWith = function(otherObject) {
+	  if (this.isMoving() || otherObject.isMoving()) {
+	    var objectDist = MovingObject.dist(this.pos, otherObject.pos);
+	    return (objectDist < 100);
+	  } else {
+	    return false;
+	  }
+	};
+	
+	Pedestrian.prototype.updateSafetyStatus = function() {
+	  if (this.pos[0] > this.DIM_X && this.isAlive()) {
+	    this.setSafety();
+	  }
 	};
 	
 	module.exports = Pedestrian;
