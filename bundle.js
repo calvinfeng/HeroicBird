@@ -61,10 +61,13 @@
 
 	var Game = __webpack_require__(2);
 	var key = __webpack_require__(5);
+	var Spacecraft = __webpack_require__(11);
 	
 	function GameView(canvas) {
 	  this.ctx = canvas.getContext("2d");
-	  this.game = new Game(canvas.width, canvas.height);
+	  this.spacecraft = new Spacecraft([canvas.width*0.10, canvas.height],
+	    canvas.width, canvas.height);
+	  this.game = new Game(canvas.width, canvas.height, this.spacecraft);
 	}
 	
 	GameView.prototype.start = function() {
@@ -79,15 +82,19 @@
 	GameView.prototype.bindKeyHandlers = function() {
 	  var self = this;
 	  key('up, w', function() {
-	    console.log("Firing thrusters!");
+	    self.spacecraft.setThrusterOn();
+	  });
+	
+	  $(document).keyup(function() {
+	    self.spacecraft.setThrusterOff();
 	  });
 	
 	  key('left, a', function() {
-	    console.log("Rotate counter-clockwise");
+	    self.spacecraft.rotateCounterClockwise();
 	  });
 	
 	  key('right, d', function() {
-	    console.log("Rotate clockwise");
+	    self.spacecraft.rotateClockwise();
 	  });
 	};
 	
@@ -103,11 +110,12 @@
 	var Meteorite = __webpack_require__(4);
 	var Background = __webpack_require__(8);
 	
-	function Game(canvasWidth, canvasHeight) {
+	function Game(canvasWidth, canvasHeight, ship) {
 	  this.DIM_X = canvasWidth;
 	  this.DIM_Y = canvasHeight;
 	  this.meteorites = [];
 	  this.explosions = [];
+	  this.spacecraft = ship;
 	  this.addMeteorites();
 	  this.background = new Background(canvasWidth, canvasHeight);
 	}
@@ -118,6 +126,7 @@
 	  this.accelObjects();
 	  this.moveObjects();
 	  this.addMeteorites();
+	  this.spacecraft.checkIsHittingWall();
 	};
 	
 	Game.prototype.draw = function(ctx) {
@@ -145,10 +154,12 @@
 	    }
 	    i -= 1;
 	  }
+	
+	  this.spacecraft.draw(ctx);
 	};
 	
 	Game.prototype.addMeteorites = function() {
-	  while (this.meteorites.length < 7) {
+	  while (this.meteorites.length < 10) {
 	    this.meteorites.push(new Meteorite(this.randomPos(), this.DIM_X, this.DIM_Y));
 	  }
 	};
@@ -167,15 +178,17 @@
 	      meteorite.move();
 	    }
 	  });
+	  this.spacecraft.move();
 	};
 	
-	var _gravity = [0, 0.05];
+	var _gravity = [0, 0.1];
 	Game.prototype.accelObjects = function() {
 	  this.meteorites.forEach(function(meteorite) {
 	    if (meteorite.isActive()) {
 	      meteorite.accelerate(_gravity);
 	    }
 	  });
+	  this.spacecraft.accelerate(_gravity);
 	};
 	
 	Game.prototype.randomPos = function() {
@@ -195,13 +208,17 @@
 	  }
 	};
 	
+	Game.prototype.allObjects = function() {
+	  return [].concat(this.meteorites, this.spacecraft);
+	};
+	
 	Game.prototype.checkSkyCollisions = function() {
-	  for (var i = 0; i < this.meteorites.length - 1; i++) {
-	    for (var j = i + 1; j < this.meteorites.length; j++) {
-	      if (this.meteorites[i].isCollidedWith(this.meteorites[j])) {
-	        this.addSkyExplosion(this.meteorites[i].getPosition());
-	        this.meteorites[i].setInactive();
-	        this.meteorites[j].setInactive();
+	  for (var i = 0; i < this.allObjects().length - 1; i++) {
+	    for (var j = i + 1; j < this.allObjects().length; j++) {
+	      if (this.allObjects()[i].isCollidedWith(this.allObjects()[j])) {
+	        this.addSkyExplosion(this.allObjects()[i].getPosition());
+	        this.allObjects()[i].setInactive();
+	        this.allObjects()[j].setInactive();
 	      }
 	    }
 	  }
@@ -217,61 +234,26 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	var MovingObject = __webpack_require__(9);
+	var Util = __webpack_require__(10);
 	
 	function Meteorite(pos, DIM_X, DIM_Y) {
+	  MovingObject.call(this, {
+	    pos: pos,
+	    DIM_X: DIM_X,
+	    DIM_Y: DIM_Y
+	  });
+	  this.vel = this.randomVel();
+	  this.radian = this.findRadian();
+	
 	  this.width = 512;
 	  this.height = 512;
-	  this.spriteImage = new Image(512,512);
+	  this.spriteImage = new Image(this.width, this.height);
 	  this.spriteImage.src = "./rsc/image/meteorite-sprite.png";
-	
-	  this.activeState = true;
-	  this.DIM_Y = DIM_Y;
-	  this.DIM_X = DIM_X;
-	  this.pos = pos;
-	  this.vel = this.randomVel();
-	  this.radian = this.findRad();
 	
 	  this.sx = 0;
 	}
 	
-	Meteorite.prototype.isActive = function() {
-	  return this.activeState;
-	};
-	
-	Meteorite.prototype.setInactive = function() {
-	  this.activeState = false;
-	};
-	
-	Meteorite.prototype.getPosition = function() {
-	  return this.pos.slice();
-	};
-	
-	Meteorite.prototype.findRad = function() {
-	  if (this.vel[0] > 0 && this.vel[1] > 0) {
-	    //Quadrant 1
-	    return Math.atan(this.vel[1]/this.vel[0]);
-	  } else if (this.vel[0] < 0 && this.vel[1] > 0) {
-	    //Quadrant 2
-	    return (Math.atan(this.vel[1]/this.vel[0])+ Math.PI);
-	  } else if (this.vel[0] < 0 && this.vel[1] < 0) {
-	    //Quadrant 3
-	    return (Math.atan(this.vel[1]/this.vel[0]) + Math.PI);
-	  } else {
-	    //Quadrant 4
-	    return (Math.atan(this.vel[1]/this.vel[0]));
-	  }
-	};
-	
-	Meteorite.prototype.move = function() {
-	  this.pos[0] += this.vel[0];
-	  this.pos[1] += this.vel[1];
-	};
-	
-	Meteorite.prototype.accelerate = function(accel) {
-	  this.vel[0] += accel[0];
-	  this.vel[1] += accel[1];
-	  this.radian = this.findRad();
-	};
+	Util.inherits(Meteorite, MovingObject);
 	
 	var _displaySize = 100;
 	Meteorite.prototype.draw = function(context) {
@@ -318,17 +300,6 @@
 	  } else {
 	    return false;
 	  }
-	};
-	
-	Meteorite.prototype.isOutOfBound = function() {
-	  return (this.pos[0] < 0 || this.pos[0] > this.DIM_X) ||
-	    (this.pos[1] < 0 || this.pos[1] > this.DIM_Y);
-	};
-	
-	Meteorite.prototype.isCollidedWith = function(otherObject) {
-	  var objectDist = MovingObject.dist(this.pos, otherObject.pos);
-	  console.log("Object Distance: ", objectDist);
-	  return (objectDist < 30);
 	};
 	
 	module.exports = Meteorite;
@@ -703,7 +674,6 @@
 	
 	  this.sx += 50;
 	  if (this.sx === _fullWidth) {
-	    // this.sx -= _fullWidth;
 	    this.activeState = false;
 	  }
 	};
@@ -755,11 +725,11 @@
 /* 9 */
 /***/ function(module, exports) {
 
-	function MovingObject(pos, DIM_X, DIM_Y) {
-	  this.pos = pos;
+	function MovingObject(args) {
+	  this.pos = args.pos;
+	  this.DIM_X = args.DIM_X;
+	  this.DIM_Y = args.DIM_Y;
 	  this.activeState = true;
-	  this.DIM_X = DIM_X;
-	  this.DIM_Y = DIM_Y;
 	}
 	
 	MovingObject.dist = function(pos1, pos2) {
@@ -771,7 +741,7 @@
 	
 	MovingObject.prototype.size = function() {
 	  //waiting to be overriden
-	  return 20;
+	  return 30;
 	};
 	
 	//All moving objects move
@@ -788,6 +758,14 @@
 	
 	MovingObject.prototype.isMoving = function() {
 	  return (this.vel[0] > 0) || (this.vel[1] > 0);
+	};
+	
+	MovingObject.prototype.setInactive = function() {
+	  this.activeState = false;
+	};
+	
+	MovingObject.prototype.isActive = function() {
+	  return this.activeState;
 	};
 	
 	MovingObject.prototype.getPosition = function() {
@@ -815,6 +793,15 @@
 	    (this.pos[1] < 0 || this.pos[1] > this.DIM_Y);
 	};
 	
+	MovingObject.prototype.checkIsHittingWall = function() {
+	  if (this.pos[0] < 0 || this.pos[0] > this.DIM_X) {
+	    this.vel[0] *= -1;
+	  }
+	  if (this.pos[1] < 0 || this.pos[1] > this.DIM_Y) {
+	    this.vel[1] *= -1;
+	  }
+	};
+	
 	MovingObject.prototype.isCollidedWith = function(otherObject) {
 	  if (this.isMoving() || otherObject.isMoving()) {
 	    var objectDist = MovingObject.dist(this.pos, otherObject.pos);
@@ -826,6 +813,114 @@
 	};
 	
 	module.exports = MovingObject;
+
+
+/***/ },
+/* 10 */
+/***/ function(module, exports) {
+
+	module.exports = {
+	  inherits: function(ChildClass, ParentClass) {
+	    function Surrogate(){}
+	    Surrogate.prototype = ParentClass.prototype;
+	    ChildClass.prototype = new Surrogate();
+	    ChildClass.prototype.constructor = ChildClass;
+	  },
+	};
+
+
+/***/ },
+/* 11 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var MovingObject = __webpack_require__(9);
+	var Util = __webpack_require__(10);
+	
+	function Spacecraft(pos, DIM_X, DIM_Y) {
+	  MovingObject.call(this, {
+	    pos: pos,
+	    DIM_X: DIM_X,
+	    DIM_Y: DIM_Y
+	  });
+	  this.vel = [0,0];
+	  this.radian = 0;
+	
+	  this.width = 99;
+	  this.height = 154;
+	  this.spriteImage = new Image(this.width, this.height);
+	  this.spriteImage.src = "./rsc/image/spaceship-sprite.png";
+	
+	  this.sx = 0;
+	  this.sy = 0;
+	  this.isThrusterOn = false;
+	}
+	
+	Util.inherits(Spacecraft, MovingObject);
+	
+	Spacecraft.prototype.draw = function(context) {
+	  if (this.isThrusterOn) {
+	    this.sy = this.height;
+	  } else {
+	    this.sy = 0;
+	  }
+	  var rotatedObj = this.rotateAndCache(this.spriteImage);
+	  context.drawImage(rotatedObj, 0, 0, this.width, this.height,
+	    this.pos[0] - (this.width/2), this.pos[1] - (this.height/2), this.width/2, this.height/2);
+	};
+	
+	var _fullWidth = 396; // this is the full width of the sprite image
+	Spacecraft.prototype.rotateAndCache = function(img) {
+	  var offscreenCanvas = document.createElement('canvas');
+	  var offscreenCtx = offscreenCanvas.getContext('2d');
+	
+	  offscreenCanvas.width = img.width;
+	  offscreenCanvas.height = img.height;
+	
+	  offscreenCtx.translate(img.width/2, img.height/2);
+	  offscreenCtx.rotate(this.radian);
+	  offscreenCtx.drawImage(img, this.sx, this.sy, img.width, img.height,
+	    (-img.width/2), (-img.height/2), img.width, img.height);
+	
+	  this.sx += this.width;
+	  if (this.sx === _fullWidth) {
+	    this.sx -= _fullWidth;
+	  }
+	  return offscreenCanvas;
+	};
+	
+	Spacecraft.prototype.setThrusterOn = function() {
+	  this.isThrusterOn = true;
+	};
+	
+	Spacecraft.prototype.setThrusterOff = function() {
+	  this.isThrusterOn = false;
+	};
+	
+	Spacecraft.prototype.rotateClockwise = function() {
+	  if (this.radian < Math.PI/2) {
+	    this.radian += 10*Math.PI/180;
+	  }
+	};
+	
+	Spacecraft.prototype.rotateCounterClockwise = function() {
+	  if (this.radian > -Math.PI/2) {
+	    this.radian -= 10*Math.PI/180;
+	  }
+	};
+	
+	var _thrustForce = 0.50;
+	Spacecraft.prototype.accelerate = function(accel) {
+	  this.vel[0] += accel[0];
+	  this.vel[1] += accel[1];
+	  if (this.isThrusterOn) {
+	    this.vel[0] += -1*_thrustForce*Math.cos(this.radian + Math.PI/2);
+	    this.vel[1] += -1*_thrustForce*Math.sin(this.radian + Math.PI/2);
+	  }
+	  //this.radian = this.findRadian();
+	};
+	
+	
+	module.exports = Spacecraft;
 
 
 /***/ }
