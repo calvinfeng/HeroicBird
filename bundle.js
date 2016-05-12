@@ -61,13 +61,13 @@
 
 	var Game = __webpack_require__(2);
 	var key = __webpack_require__(5);
-	var Spacecraft = __webpack_require__(11);
+	var Bird = __webpack_require__(12);
 	
 	function GameView(canvas) {
 	  this.ctx = canvas.getContext("2d");
-	  this.spacecraft = new Spacecraft([canvas.width*0.10, canvas.height],
+	  this.bird = new Bird([canvas.width/2, 0],
 	    canvas.width, canvas.height);
-	  this.game = new Game(canvas.width, canvas.height, this.spacecraft);
+	  this.game = new Game(canvas.width, canvas.height, this.bird);
 	}
 	
 	GameView.prototype.start = function() {
@@ -82,19 +82,19 @@
 	GameView.prototype.bindKeyHandlers = function() {
 	  var self = this;
 	  key('up, w', function() {
-	    self.spacecraft.setThrusterOn();
+	    self.bird.startFlapping();
 	  });
 	
 	  $(document).keyup(function() {
-	    self.spacecraft.setThrusterOff();
+	    self.bird.stopFlapping();
 	  });
 	
 	  key('left, a', function() {
-	    self.spacecraft.rotateCounterClockwise();
+	    self.bird.moveLeft();
 	  });
 	
 	  key('right, d', function() {
-	    self.spacecraft.rotateClockwise();
+	    self.bird.moveRight();
 	  });
 	};
 	
@@ -108,32 +108,45 @@
 	var SkyExplosion = __webpack_require__(6);
 	var GroundExplosion = __webpack_require__(7);
 	var Meteorite = __webpack_require__(4);
+	var Pedestrian = __webpack_require__(13);
 	var Background = __webpack_require__(8);
 	
-	function Game(canvasWidth, canvasHeight, ship) {
+	function Game(canvasWidth, canvasHeight, bird) {
 	  this.DIM_X = canvasWidth;
 	  this.DIM_Y = canvasHeight;
 	  this.meteorites = [];
 	  this.explosions = [];
-	  this.spacecraft = ship;
+	  this.pedestrians = [];
+	  this.bird = bird;
 	  this.addMeteorites();
+	  this.addPeople();
 	  this.background = new Background(canvasWidth, canvasHeight);
 	}
 	
 	Game.prototype.step = function() {
 	  this.checkGroundCollisions();
 	  this.checkSkyCollisions();
+	  this.addMeteorites();
 	  this.accelObjects();
 	  this.moveObjects();
-	  this.addMeteorites();
-	  this.spacecraft.checkIsHittingWall();
+	  this.bird.wrapIfHittingWall();
 	};
 	
 	Game.prototype.draw = function(ctx) {
-	  var i;
+	  var i, grd;
 	  ctx.clearRect(0, 0, this.DIM_X, this.DIM_Y);
-	  this.background.drawGround(ctx);
-	  this.background.drawMountain(ctx);
+	
+	  grd = ctx.createLinearGradient(150.000, 0.000, 150.000, 300.000);
+	
+	  // Add colors
+	  grd.addColorStop(0.000, 'rgba(0, 88, 242, 1.000)');
+	  grd.addColorStop(1.000, 'rgba(0, 179, 224, 1.000)');
+	
+	  // Fill with gradient
+	  ctx.fillStyle = grd;
+	  ctx.fillRect(0, 0, this.DIM_X, this.DIM_Y);
+	
+	   this.background.drawGrassyGround(ctx);
 	
 	  i = this.meteorites.length - 1;
 	  while (i >= 0) {
@@ -155,12 +168,36 @@
 	    i -= 1;
 	  }
 	
-	  this.spacecraft.draw(ctx);
+	  i = this.pedestrians.length - 1;
+	  while (i >= 0) {
+	    if (this.pedestrians[i].isAlive()) {
+	      this.pedestrians[i].draw(ctx);
+	    } else {
+	      this.pedestrians.splice(i, 1);
+	    }
+	    i -= 1;
+	  }
+	
+	  this.bird.draw(ctx);
 	};
 	
+	// Game.prototype.spawnWalkingPeople = function() {
+	//   var odds = 10;
+	//   if (Math.floor(Math.random()*odds) === Math.floor(Math.random()*odds)) {
+	//     this.pedestrians.push(new Pedestrian([0, this.DIM_Y], this.DIM_X, this.DIM_Y));
+	//   }
+	// };
+	
+	
 	Game.prototype.addMeteorites = function() {
-	  while (this.meteorites.length < 10) {
+	  while (this.meteorites.length < 5) {
 	    this.meteorites.push(new Meteorite(this.randomPos(), this.DIM_X, this.DIM_Y));
+	  }
+	};
+	
+	Game.prototype.addPeople = function() {
+	  while (this.pedestrians.length < 2) {
+	    this.pedestrians.push(new Pedestrian([0, this.DIM_Y], this.DIM_X, this.DIM_Y));
 	  }
 	};
 	
@@ -178,7 +215,14 @@
 	      meteorite.move();
 	    }
 	  });
-	  this.spacecraft.move();
+	
+	  this.pedestrians.forEach(function(pedestrian) {
+	    if (pedestrian.isAlive()) {
+	      pedestrian.move();
+	    }
+	  });
+	
+	  this.bird.move();
 	};
 	
 	var _gravity = [0, 0.1];
@@ -188,7 +232,7 @@
 	      meteorite.accelerate(_gravity);
 	    }
 	  });
-	  this.spacecraft.accelerate(_gravity);
+	  this.bird.accelerate(_gravity);
 	};
 	
 	Game.prototype.randomPos = function() {
@@ -209,7 +253,7 @@
 	};
 	
 	Game.prototype.allObjects = function() {
-	  return [].concat(this.meteorites, this.spacecraft);
+	  return [].concat(this.meteorites, this.bird);
 	};
 	
 	Game.prototype.checkSkyCollisions = function() {
@@ -292,7 +336,7 @@
 	
 	Meteorite.prototype.isCollidedWithGround = function() {
 	  if (this.pos[0] > 0 && this.pos[0] < this.DIM_X) {
-	    if (this.pos[1] >= this.DIM_Y - 50) {
+	    if (this.pos[1] >= this.DIM_Y - 100) {
 	      return true;
 	    } else {
 	      return false;
@@ -718,6 +762,16 @@
 	     this.DIM_X, this.DIM_X*_mountImgHeight/_mountImgWidth);
 	};
 	
+	var _grassyImgHeight = 768;
+	var _grassyImgWidth = 1366;
+	Background.prototype.drawGrassyGround = function(context) {
+	  var spriteImage = new Image(_grassyImgWidth, _grassyImgHeight);
+	  spriteImage.src = "./rsc/image/background-city.png";
+	  context.drawImage(spriteImage, 0, 0, _grassyImgWidth, _grassyImgHeight,
+	    0, this.DIM_Y - this.DIM_X*_grassyImgHeight/_grassyImgWidth,
+	    this.DIM_X, this.DIM_X*_grassyImgHeight/_grassyImgWidth);
+	};
+	
 	module.exports = Background;
 
 
@@ -737,11 +791,6 @@
 	  var dy = pos1[1] - pos2[1];
 	  var dist = Math.sqrt(Math.pow(dx,2) + Math.pow(dy,2));
 	  return dist;
-	};
-	
-	MovingObject.prototype.size = function() {
-	  //waiting to be overriden
-	  return 30;
 	};
 	
 	//All moving objects move
@@ -802,6 +851,11 @@
 	  }
 	};
 	
+	MovingObject.prototype.size = function() {
+	  //waiting to be overriden
+	  return 30;
+	};
+	
 	MovingObject.prototype.isCollidedWith = function(otherObject) {
 	  if (this.isMoving() || otherObject.isMoving()) {
 	    var objectDist = MovingObject.dist(this.pos, otherObject.pos);
@@ -830,13 +884,14 @@
 
 
 /***/ },
-/* 11 */
+/* 11 */,
+/* 12 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var MovingObject = __webpack_require__(9);
 	var Util = __webpack_require__(10);
 	
-	function Spacecraft(pos, DIM_X, DIM_Y) {
+	function Bird(pos, DIM_X, DIM_Y) {
 	  MovingObject.call(this, {
 	    pos: pos,
 	    DIM_X: DIM_X,
@@ -845,41 +900,157 @@
 	  this.vel = [0,0];
 	  this.radian = 0;
 	
-	  this.width = 99;
-	  this.height = 154;
+	  this.width = 98.5;
+	  this.height = 66;
 	  this.spriteImage = new Image(this.width, this.height);
-	  this.spriteImage.src = "./rsc/image/spaceship-sprite.png";
+	  this.spriteImage.src = "./rsc/image/flappy-bird-sprite.png";
 	
 	  this.sx = 0;
-	  this.sy = 0;
-	  this.isThrusterOn = false;
+	  this.isFlapping = false;
+	  this.isFacingLeft = false;
 	}
 	
-	Util.inherits(Spacecraft, MovingObject);
+	Util.inherits(Bird, MovingObject);
 	
-	Spacecraft.prototype.draw = function(context) {
-	  if (this.isThrusterOn) {
-	    this.sy = this.height;
-	  } else {
-	    this.sy = 0;
-	  }
-	  var rotatedObj = this.rotateAndCache(this.spriteImage);
-	  context.drawImage(rotatedObj, 0, 0, this.width, this.height,
-	    this.pos[0] - (this.width/2), this.pos[1] - (this.height/2), this.width/2, this.height/2);
+	var _fullWidth = 788;
+	Bird.prototype.draw = function(context) {
+	  var orientedBird = this.orientateAndCache(this.spriteImage);
+	  context.drawImage(orientedBird, 0, 0, this.width, this.height,
+	    this.pos[0] - (this.width/2), this.pos[1] - (this.height/2) - 10, this.width/2, this.height/2);
 	};
 	
-	var _fullWidth = 396; // this is the full width of the sprite image
-	Spacecraft.prototype.rotateAndCache = function(img) {
+	Bird.prototype.orientateAndCache = function(img) {
 	  var offscreenCanvas = document.createElement('canvas');
 	  var offscreenCtx = offscreenCanvas.getContext('2d');
 	
 	  offscreenCanvas.width = img.width;
 	  offscreenCanvas.height = img.height;
 	
-	  offscreenCtx.translate(img.width/2, img.height/2);
-	  offscreenCtx.rotate(this.radian);
-	  offscreenCtx.drawImage(img, this.sx, this.sy, img.width, img.height,
-	    (-img.width/2), (-img.height/2), img.width, img.height);
+	  if (this.isFacingLeft) {
+	    offscreenCtx.translate(img.width, 0);
+	    offscreenCtx.scale(-1, 1);
+	  }
+	  offscreenCtx.drawImage(img, this.sx, 0, img.width, img.height,
+	    0, 0, img.width, img.height);
+	
+	  if (this.isFlapping) {
+	    this.sx += this.width;
+	    if (this.sx === _fullWidth) {
+	      this.sx -= _fullWidth;
+	    }
+	  }
+	  return offscreenCanvas;
+	};
+	
+	
+	Bird.prototype.startFlapping = function() {
+	  this.isFlapping = true;
+	};
+	
+	Bird.prototype.stopFlapping = function() {
+	  this.isFlapping = false;
+	};
+	
+	Bird.prototype.wrapIfHittingWall = function() {
+	  if (this.pos[0] - (this.width/2) < 0 ) {
+	    this.pos[0] = this.pos[0] + this.DIM_X;
+	  } else if (this.pos[0] + (this.width/2) > this.DIM_X) {
+	    this.pos[0] = this.pos[0] % this.DIM_X;
+	  }
+	
+	  if (this.pos[1] - (this.height/2) <= 0) {
+	    this.vel[1] = 0;
+	    this.pos[1] = (this.height/2);
+	  } else if (this.pos[1] + (this.height/2) >= this.DIM_Y) {
+	    this.vel[0] = 0;
+	    this.vel[1] = 0;
+	    this.pos[1] = this.DIM_Y - (this.height/2);
+	  }
+	};
+	
+	Bird.prototype.accelerate = function(accel) {
+	  this.vel[0] += accel[0];
+	  this.vel[1] += accel[1];
+	  if (this.isFlapping) {
+	    this.vel[1] -= 0.25;
+	  }
+	};
+	
+	Bird.prototype.setFaceLeft = function() {
+	  this.isFacingLeft = true;
+	};
+	
+	Bird.prototype.setFaceRight = function() {
+	  this.isFacingLeft = false;
+	};
+	
+	Bird.prototype.moveLeft = function() {
+	  this.setFaceLeft();
+	  if (this.vel[0] > 0) {
+	    this.vel[0] = 0;
+	  }
+	  this.vel[0] = -5;
+	};
+	
+	Bird.prototype.moveRight = function() {
+	  this.setFaceRight();
+	  if (this.vel[0] < 0) {
+	    this.vel[0] = 0;
+	  }
+	  this.vel[0] = 5;
+	};
+	
+	module.exports = Bird;
+
+
+/***/ },
+/* 13 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var MovingObject = __webpack_require__(9);
+	var Util = __webpack_require__(10);
+	
+	function Pedestrian(pos, DIM_X, DIM_Y) {
+	  MovingObject.call(this, {
+	    pos: pos,
+	    DIM_X: DIM_X,
+	    DIM_Y: DIM_Y
+	  });
+	  this.vel = [5,0];
+	  this.radian = 0;
+	
+	  this.width = 184;
+	  this.height = 325;
+	  this.spriteImage = new Image(this.width, this.height);
+	  this.spriteImage.src = "./rsc/image/pedestrian.png";
+	
+	  this.alive = true;
+	  this.sx = 0;
+	  this.isFacingLeft = false;
+	}
+	
+	Util.inherits(Pedestrian, MovingObject);
+	
+	Pedestrian.prototype.draw = function(context) {
+	  var orientedPerson = this.orientateAndCache(this.spriteImage);
+	  context.drawImage(orientedPerson, 0, 0, this.width, this.height,
+	    this.pos[0] - (this.width/4), this.pos[1] - (this.height/4) - 50, this.width/4, this.height/4);
+	};
+	
+	var _fullWidth = 1472;
+	Pedestrian.prototype.orientateAndCache = function(img) {
+	  var offscreenCanvas = document.createElement('canvas');
+	  var offscreenCtx = offscreenCanvas.getContext('2d');
+	
+	  offscreenCanvas.width = img.width;
+	  offscreenCanvas.height = img.height;
+	
+	  if (this.isFacingLeft) {
+	    offscreenCtx.translate(img.width, 0);
+	    offscreenCtx.scale(-1, 1);
+	  }
+	  offscreenCtx.drawImage(img, this.sx, 0, img.width, img.height,
+	    0, 0, img.width, img.height);
 	
 	  this.sx += this.width;
 	  if (this.sx === _fullWidth) {
@@ -888,39 +1059,11 @@
 	  return offscreenCanvas;
 	};
 	
-	Spacecraft.prototype.setThrusterOn = function() {
-	  this.isThrusterOn = true;
+	Pedestrian.prototype.isAlive = function() {
+	  return this.alive;
 	};
 	
-	Spacecraft.prototype.setThrusterOff = function() {
-	  this.isThrusterOn = false;
-	};
-	
-	Spacecraft.prototype.rotateClockwise = function() {
-	  if (this.radian < Math.PI/2) {
-	    this.radian += 10*Math.PI/180;
-	  }
-	};
-	
-	Spacecraft.prototype.rotateCounterClockwise = function() {
-	  if (this.radian > -Math.PI/2) {
-	    this.radian -= 10*Math.PI/180;
-	  }
-	};
-	
-	var _thrustForce = 0.50;
-	Spacecraft.prototype.accelerate = function(accel) {
-	  this.vel[0] += accel[0];
-	  this.vel[1] += accel[1];
-	  if (this.isThrusterOn) {
-	    this.vel[0] += -1*_thrustForce*Math.cos(this.radian + Math.PI/2);
-	    this.vel[1] += -1*_thrustForce*Math.sin(this.radian + Math.PI/2);
-	  }
-	  //this.radian = this.findRadian();
-	};
-	
-	
-	module.exports = Spacecraft;
+	module.exports = Pedestrian;
 
 
 /***/ }
