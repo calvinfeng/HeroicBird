@@ -4,24 +4,13 @@
 
 body {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   justify-content: center;
+  align-items: center;
 }
 
 .main-console {
-  width: 75%;
-  height: 100%;
-}
-
-.instructions {
-  box-sizing: border-box;
-  font-size: 14px;
-  width: 20%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-content: flex-start;
-  padding: 0px 30px 30px 30px;
+  width: 70%;
 }
 
 .main-console > article {
@@ -40,6 +29,11 @@ body {
   margin-top: 10px;
 }
 
-#explosion {
-  display: none;
+.info {
+  display: flex;
+  flex-direction: row;
+}
+
+.info > div {
+  margin: 5px 5px 5px 5px;
 }

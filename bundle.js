@@ -66,29 +66,52 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	var Game = __webpack_require__(2);
-	var key = __webpack_require__(5);
-	var Bird = __webpack_require__(12);
+	var key = __webpack_require__(10);
+	var Bird = __webpack_require__(11);
 	
 	function GameView(canvas) {
 	  this.ctx = canvas.getContext("2d");
 	  this.bird = new Bird([canvas.width/2, 0], canvas.width, canvas.height);
 	  this.game = new Game(canvas.width, canvas.height, this.bird);
+	  this.isPause = true;
+	  this.bindKeyHandlers();
 	}
 	
+	GameView.prototype.initInstructions = function() {
+	
+	};
+	
 	GameView.prototype.start = function() {
-	  this.bindKeyHandlers();
-	  var self = this;
-	  setInterval(function() {
+	  var self, liveCount, deadCount, speed;
+	
+	  self = this;
+	  this.isPause = false;
+	  this.gameInterval = setInterval(function() {
 	    self.game.step();
 	    self.game.draw(self.ctx);
-	    self.updateDeathToll(self.game.getDeathToll());
-	    self.updateLivesSaved(self.game.getNumOfLivesSaved());
+	    deadCount = self.game.getDeathToll();
+	    liveCount = self.game.getNumOfLivesSaved();
+	    speed = self.bird.getVerticalVelocity();
+	    self.updateStatus(deadCount, liveCount);
+	    self.updateSpeed(speed);
+	    self.checkIfPause();
 	  }, 50);
+	};
+	
+	GameView.prototype.checkIfPause = function() {
+	  if (this.isPause) {
+	    clearInterval(this.gameInterval);
+	  }
+	};
+	
+	GameView.prototype.pause = function(event) {
+	  event.preventDefault();
+	  this.isPause = true;
 	};
 	
 	GameView.prototype.bindKeyHandlers = function() {
 	  var self = this;
-	  key('up, w', function() {
+	  key('space', function() {
 	    self.bird.startFlapping();
 	  });
 	
@@ -103,14 +126,20 @@
 	  key('right, d', function() {
 	    self.bird.moveRight();
 	  });
+	
+	  $("#pause").on("click", this.pause.bind(this));
+	  $("#restart").on("click", this.start.bind(this));
 	};
 	
-	GameView.prototype.updateDeathToll = function(num) {
-	  $("#death-toll").text("Deathtoll: " + num);
+	GameView.prototype.updateStatus = function(deadCount, liveCount) {
+	  $("#death-toll").text("Death toll: " + deadCount);
+	  $("#lives-saved").text("Lives saved: " + liveCount);
 	};
 	
-	GameView.prototype.updateLivesSaved = function(num) {
-	  $("#lives-saved").text("Lives saved: " + num);
+	GameView.prototype.updateSpeed = function(speed) {
+	  var text = "Veritcal Speed: ";
+	  speed *= -1;
+	  $("#vertical-velocity").text(text + Math.round(speed));
 	};
 	
 	module.exports = GameView;
@@ -120,11 +149,11 @@
 /* 2 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var SkyExplosion = __webpack_require__(6);
-	var GroundExplosion = __webpack_require__(7);
-	var Meteorite = __webpack_require__(4);
-	var Pedestrian = __webpack_require__(13);
-	var Background = __webpack_require__(8);
+	var SkyExplosion = __webpack_require__(3);
+	var GroundExplosion = __webpack_require__(4);
+	var Meteorite = __webpack_require__(5);
+	var Pedestrian = __webpack_require__(8);
+	var Background = __webpack_require__(9);
 	
 	function Game(canvasWidth, canvasHeight, bird) {
 	  this.DIM_X = canvasWidth;
@@ -161,7 +190,8 @@
 	  ctx.fillStyle = grd;
 	  ctx.fillRect(0, 0, this.DIM_X, this.DIM_Y);
 	
-	  this.background.drawGrassyGround(ctx);
+	  this.background.draw(ctx);
+	  this.bird.draw(ctx);
 	
 	  i = this.meteorites.length - 1;
 	  while (i >= 0) {
@@ -196,8 +226,10 @@
 	    }
 	    i -= 1;
 	  }
+	};
 	
-	  this.bird.draw(ctx);
+	Game.prototype.allObjects = function() {
+	  return [].concat(this.meteorites, this.bird);
 	};
 	
 	Game.prototype.getDeathToll = function() {
@@ -206,6 +238,14 @@
 	
 	Game.prototype.getNumOfLivesSaved = function() {
 	  return this.saveCount;
+	};
+	
+	Game.prototype.addGroundExplosion = function(pos) {
+	  this.explosions.push(new GroundExplosion(pos));
+	};
+	
+	Game.prototype.addSkyExplosion = function(pos) {
+	  this.explosions.push(new SkyExplosion(pos));
 	};
 	
 	Game.prototype.addMeteorites = function() {
@@ -221,28 +261,19 @@
 	  }
 	};
 	
-	Game.prototype.addGroundExplosion = function(pos) {
-	  this.explosions.push(new GroundExplosion(pos));
-	};
-	
-	Game.prototype.addSkyExplosion = function(pos) {
-	  this.explosions.push(new SkyExplosion(pos));
-	};
 	
 	Game.prototype.moveObjects = function() {
+	  this.bird.move();
 	  this.meteorites.forEach(function(meteorite) {
 	    if (meteorite.isActive()) {
 	      meteorite.move();
 	    }
 	  });
-	
 	  this.pedestrians.forEach(function(pedestrian) {
 	    if (pedestrian.isAlive()) {
 	      pedestrian.move();
 	    }
 	  });
-	
-	  this.bird.move();
 	};
 	
 	var _gravity = [0, 0.1];
@@ -259,10 +290,6 @@
 	  //randomPos is for meteorites;
 	  var randx = Math.floor(Math.random() * this.DIM_X + 1);
 	  return [randx, 0];
-	};
-	
-	Game.prototype.allObjects = function() {
-	  return [].concat(this.meteorites, this.bird);
 	};
 	
 	Game.prototype.checkGroundCollisions = function() {
@@ -289,11 +316,9 @@
 	};
 	
 	Game.prototype.checkCollisionOnPedestrians = function() {
-	
 	  for (var i = 0; i < this.pedestrians.length; i++) {
 	    for (var j = 0; j < this.meteorites.length; j++) {
 	      if (this.pedestrians[i].isCollidedWith(this.meteorites[j])) {
-	        console.log("it's checking");
 	        this.addSkyExplosion(this.pedestrians[i].getPosition());
 	        this.meteorites[j].setInactive();
 	        this.pedestrians[i].setDead();
@@ -313,12 +338,93 @@
 
 
 /***/ },
-/* 3 */,
+/* 3 */
+/***/ function(module, exports) {
+
+	function SkyExplosion(pos) {
+	  this.width = 134;
+	  this.height = 134;
+	  this.spriteImage = new Image(134,134);
+	  this.spriteImage.src = "./rsc/image/explosion-sprite.png";
+	  this.activeState = true;
+	  this.pos = pos;
+	  this.sx = 0;
+	}
+	
+	var _fullWidth = 1608;
+	SkyExplosion.prototype.draw = function(context) {
+	  if (this.sx === 0) {
+	    this.playSound();
+	  }
+	
+	  context.drawImage(this.spriteImage, this.sx, 0, this.width, this.height,
+	    this.pos[0]-(this.width/2), this.pos[1]-(this.height/2), this.width, this.height);
+	
+	  this.sx += 134;
+	  if (this.sx === _fullWidth) {
+	    this.activeState = false;
+	  }
+	};
+	
+	SkyExplosion.prototype.playSound = function() {
+	  var sound = new Audio('./rsc/sound/sky-explosion.mp3');
+	  sound.play();
+	};
+	
+	SkyExplosion.prototype.isActive = function() {
+	  return this.activeState;
+	};
+	
+	module.exports = SkyExplosion;
+
+
+/***/ },
 /* 4 */
+/***/ function(module, exports) {
+
+	function GroundExplosion(pos) {
+	  this.width = 50;
+	  this.height = 128;
+	  this.spriteImage = new Image(50,128);
+	  this.spriteImage.src = "./rsc/image/ground-explosion-sprite.png";
+	  this.activeState = true;
+	  this.pos = pos;
+	  this.sx = 0;
+	}
+	
+	var _fullWidth = 900;
+	GroundExplosion.prototype.draw = function(context) {
+	  if (this.sx === 0) {
+	    this.playSound();
+	  }
+	
+	  context.drawImage(this.spriteImage, this.sx, 0, this.width, this.height,
+	    this.pos[0]-(this.width/2), this.pos[1]-(this.height/2), this.width, this.height);
+	
+	  this.sx += 50;
+	  if (this.sx === _fullWidth) {
+	    this.activeState = false;
+	  }
+	};
+	
+	GroundExplosion.prototype.playSound = function() {
+	  var sound = new Audio('./rsc/sound/ground-explosion.mp3');
+	  sound.play();
+	};
+	
+	GroundExplosion.prototype.isActive = function() {
+	  return this.activeState;
+	};
+	
+	module.exports = GroundExplosion;
+
+
+/***/ },
+/* 5 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var MovingObject = __webpack_require__(9);
-	var Util = __webpack_require__(10);
+	var MovingObject = __webpack_require__(6);
+	var Util = __webpack_require__(7);
 	
 	function Meteorite(pos, DIM_X, DIM_Y) {
 	  MovingObject.call(this, {
@@ -390,7 +496,250 @@
 
 
 /***/ },
-/* 5 */
+/* 6 */
+/***/ function(module, exports) {
+
+	function MovingObject(args) {
+	  this.pos = args.pos;
+	  this.DIM_X = args.DIM_X;
+	  this.DIM_Y = args.DIM_Y;
+	  this.activeState = true;
+	}
+	
+	MovingObject.dist = function(pos1, pos2) {
+	  var dx = pos1[0] - pos2[0];
+	  var dy = pos1[1] - pos2[1];
+	  var dist = Math.sqrt(Math.pow(dx,2) + Math.pow(dy,2));
+	  return dist;
+	};
+	
+	//All moving objects move
+	MovingObject.prototype.move = function() {
+	  this.pos[0] += this.vel[0];
+	  this.pos[1] += this.vel[1];
+	};
+	
+	MovingObject.prototype.accelerate = function(accel) {
+	  this.vel[0] += accel[0];
+	  this.vel[1] += accel[1];
+	  this.radian = this.findRadian();
+	};
+	
+	MovingObject.prototype.isMoving = function() {
+	  return (this.vel[0] > 0) || (this.vel[1] > 0);
+	};
+	
+	MovingObject.prototype.setInactive = function() {
+	  this.activeState = false;
+	};
+	
+	MovingObject.prototype.isActive = function() {
+	  return this.activeState;
+	};
+	
+	MovingObject.prototype.getPosition = function() {
+	  return this.pos.slice();
+	};
+	
+	MovingObject.prototype.findRadian = function() {
+	  if (this.vel[0] > 0 && this.vel[1] > 0) {
+	    //Quadrant 1
+	    return Math.atan(this.vel[1]/this.vel[0]);
+	  } else if (this.vel[0] < 0 && this.vel[1] > 0) {
+	    //Quadrant 2
+	    return (Math.atan(this.vel[1]/this.vel[0])+ Math.PI);
+	  } else if (this.vel[0] < 0 && this.vel[1] < 0) {
+	    //Quadrant 3
+	    return (Math.atan(this.vel[1]/this.vel[0]) + Math.PI);
+	  } else {
+	    //Quadrant 4
+	    return (Math.atan(this.vel[1]/this.vel[0]));
+	  }
+	};
+	
+	MovingObject.prototype.isOutOfBound = function() {
+	  return (this.pos[0] < 0 || this.pos[0] > this.DIM_X) ||
+	    (this.pos[1] < 0 || this.pos[1] > this.DIM_Y);
+	};
+	
+	MovingObject.prototype.checkIsHittingWall = function() {
+	  if (this.pos[0] < 0 || this.pos[0] > this.DIM_X) {
+	    this.vel[0] *= -1;
+	  }
+	  if (this.pos[1] < 0 || this.pos[1] > this.DIM_Y) {
+	    this.vel[1] *= -1;
+	  }
+	};
+	
+	MovingObject.prototype.size = function() {
+	  //waiting to be overriden
+	  return 30;
+	};
+	
+	MovingObject.prototype.isCollidedWith = function(otherObject) {
+	  if (this.isMoving() || otherObject.isMoving()) {
+	    var objectDist = MovingObject.dist(this.pos, otherObject.pos);
+	    var radSum = this.size() + otherObject.size();
+	    return (objectDist < radSum);
+	  } else {
+	    return false;
+	  }
+	};
+	
+	module.exports = MovingObject;
+
+
+/***/ },
+/* 7 */
+/***/ function(module, exports) {
+
+	module.exports = {
+	  inherits: function(ChildClass, ParentClass) {
+	    function Surrogate(){}
+	    Surrogate.prototype = ParentClass.prototype;
+	    ChildClass.prototype = new Surrogate();
+	    ChildClass.prototype.constructor = ChildClass;
+	  },
+	};
+
+
+/***/ },
+/* 8 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var MovingObject = __webpack_require__(6);
+	var Util = __webpack_require__(7);
+	
+	function Pedestrian(pos, DIM_X, DIM_Y) {
+	  MovingObject.call(this, {
+	    pos: pos,
+	    DIM_X: DIM_X,
+	    DIM_Y: DIM_Y
+	  });
+	  this.vel = [5,0];
+	  this.radian = 0;
+	
+	  this.width = 184;
+	  this.height = 325;
+	  this.spriteImage = new Image(this.width, this.height);
+	  this.spriteImage.src = "./rsc/image/pedestrian.png";
+	
+	  this.alive = true;
+	  this.safety = false;
+	  this.sx = 0;
+	  this.isFacingLeft = false;
+	}
+	
+	Util.inherits(Pedestrian, MovingObject);
+	
+	Pedestrian.prototype.draw = function(context) {
+	  var orientedPerson = this.orientateAndCache(this.spriteImage);
+	  context.drawImage(orientedPerson, 0, 0, this.width, this.height,
+	    this.pos[0] - (this.width/4), this.pos[1] - (this.height/4), this.width/4, this.height/4);
+	};
+	
+	var _fullWidth = 1472;
+	Pedestrian.prototype.orientateAndCache = function(img) {
+	  var offscreenCanvas = document.createElement('canvas');
+	  var offscreenCtx = offscreenCanvas.getContext('2d');
+	
+	  offscreenCanvas.width = img.width;
+	  offscreenCanvas.height = img.height;
+	
+	  if (this.isFacingLeft) {
+	    offscreenCtx.translate(img.width, 0);
+	    offscreenCtx.scale(-1, 1);
+	  }
+	  offscreenCtx.drawImage(img, this.sx, 0, img.width, img.height,
+	    0, 0, img.width, img.height);
+	
+	  this.sx += this.width;
+	  if (this.sx === _fullWidth) {
+	    this.sx -= _fullWidth;
+	  }
+	  return offscreenCanvas;
+	};
+	
+	Pedestrian.prototype.setDead = function() {
+	  this.alive = false;
+	};
+	
+	Pedestrian.prototype.setSafety = function() {
+	  this.safety = true;
+	};
+	
+	Pedestrian.prototype.isAlive = function() {
+	  return this.alive;
+	};
+	
+	Pedestrian.prototype.isSaved = function() {
+	  return this.safety;
+	};
+	
+	Pedestrian.prototype.isCollidedWith = function(otherObject) {
+	  if (this.isMoving() || otherObject.isMoving()) {
+	    var objectDist = MovingObject.dist(this.pos, otherObject.pos);
+	    return (objectDist < 65);
+	  } else {
+	    return false;
+	  }
+	};
+	
+	Pedestrian.prototype.updateSafetyStatus = function() {
+	  if (this.pos[0] > this.DIM_X && this.isAlive()) {
+	    this.setSafety();
+	  }
+	};
+	
+	module.exports = Pedestrian;
+
+
+/***/ },
+/* 9 */
+/***/ function(module, exports) {
+
+	function Background(DIM_X, DIM_Y) {
+	  this.DIM_X = DIM_X;
+	  this.DIM_Y = DIM_Y;
+	}
+	
+	var _imgHeight = 768;
+	var _imgWidth = 1366;
+	Background.prototype.draw = function(context) {
+	  var spriteImage = new Image(_imgWidth, _imgHeight);
+	  spriteImage.src = "./rsc/image/background-city.png";
+	  context.drawImage(spriteImage, 0, 0, _imgWidth, _imgHeight,
+	    0, this.DIM_Y - this.DIM_X*_imgHeight/_imgWidth,
+	    this.DIM_X, this.DIM_X*_imgHeight/_imgWidth);
+	};
+	
+	//Alternative background but it's now deprecated
+	var _groundImgHeight = 74;
+	var _groundImgWidth = 1364;
+	Background.prototype.drawGround = function(context) {
+	  var spriteImage = new Image(_groundImgWidth, _groundImgHeight);
+	  spriteImage.src = "./rsc/image/ground.png";
+	  context.drawImage(spriteImage, 0, 0, _groundImgWidth, _groundImgHeight,
+	    0, this.DIM_Y - _groundImgHeight*0.90, this.DIM_X, this.DIM_X*_groundImgHeight/_groundImgWidth);
+	};
+	
+	var _mountImgHeight = 121;
+	var _mountImgWidth = 1130;
+	Background.prototype.drawMountain = function(context) {
+	  var spriteImage = new Image(_mountImgWidth, _mountImgHeight);
+	  spriteImage.src = "./rsc/image/mountains.png";
+	  context.drawImage(spriteImage, 0, 0, _mountImgWidth, _mountImgHeight,
+	    0, this.DIM_Y - _groundImgHeight - (0.80*_mountImgHeight),
+	     this.DIM_X, this.DIM_X*_mountImgHeight/_mountImgWidth);
+	};
+	
+	
+	
+	module.exports = Background;
+
+
+/***/ },
+/* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//     keymaster.js
@@ -692,244 +1041,11 @@
 
 
 /***/ },
-/* 6 */
-/***/ function(module, exports) {
-
-	function SkyExplosion(pos) {
-	  this.width = 134;
-	  this.height = 134;
-	  this.spriteImage = new Image(134,134);
-	  this.spriteImage.src = "./rsc/image/explosion-sprite.png";
-	  this.activeState = true;
-	  this.pos = pos;
-	  this.sx = 0;
-	}
-	
-	var _fullWidth = 1608;
-	SkyExplosion.prototype.draw = function(context) {
-	  if (this.sx === 0) {
-	    this.playSound();
-	  }
-	
-	  context.drawImage(this.spriteImage, this.sx, 0, this.width, this.height,
-	    this.pos[0]-(this.width/2), this.pos[1]-(this.height/2), this.width, this.height);
-	
-	  this.sx += 134;
-	  if (this.sx === _fullWidth) {
-	    // this.sx -= _fullWidth;
-	    this.activeState = false;
-	  }
-	};
-	
-	SkyExplosion.prototype.playSound = function() {
-	  var sound = new Audio('./rsc/sound/sky-explosion.mp3');
-	  sound.play();
-	};
-	
-	SkyExplosion.prototype.isActive = function() {
-	  return this.activeState;
-	};
-	
-	module.exports = SkyExplosion;
-
-
-/***/ },
-/* 7 */
-/***/ function(module, exports) {
-
-	function GroundExplosion(pos) {
-	  this.width = 50;
-	  this.height = 128;
-	  this.spriteImage = new Image(50,128);
-	  this.spriteImage.src = "./rsc/image/ground-explosion-sprite.png";
-	  this.activeState = true;
-	  this.pos = pos;
-	  this.sx = 0;
-	}
-	
-	var _fullWidth = 900;
-	GroundExplosion.prototype.draw = function(context) {
-	  if (this.sx === 0) {
-	    this.playSound();
-	  }
-	
-	  context.drawImage(this.spriteImage, this.sx, 0, this.width, this.height,
-	    this.pos[0]-(this.width/2), this.pos[1]-(this.height/2), this.width, this.height);
-	
-	  this.sx += 50;
-	  if (this.sx === _fullWidth) {
-	    this.activeState = false;
-	  }
-	};
-	
-	GroundExplosion.prototype.playSound = function() {
-	  var sound = new Audio('./rsc/sound/ground-explosion.mp3');
-	  sound.play();
-	};
-	
-	GroundExplosion.prototype.isActive = function() {
-	  return this.activeState;
-	};
-	
-	module.exports = GroundExplosion;
-
-
-/***/ },
-/* 8 */
-/***/ function(module, exports) {
-
-	function Background(DIM_X, DIM_Y) {
-	  this.DIM_X = DIM_X;
-	  this.DIM_Y = DIM_Y;
-	}
-	
-	var _groundImgHeight = 74;
-	var _groundImgWidth = 1364;
-	Background.prototype.drawGround = function(context) {
-	  var spriteImage = new Image(_groundImgWidth, _groundImgHeight);
-	  spriteImage.src = "./rsc/image/ground.png";
-	  context.drawImage(spriteImage, 0, 0, _groundImgWidth, _groundImgHeight,
-	    0, this.DIM_Y - _groundImgHeight*0.90, this.DIM_X, this.DIM_X*_groundImgHeight/_groundImgWidth);
-	};
-	
-	var _mountImgHeight = 121;
-	var _mountImgWidth = 1130;
-	Background.prototype.drawMountain = function(context) {
-	  var spriteImage = new Image(_mountImgWidth, _mountImgHeight);
-	  spriteImage.src = "./rsc/image/mountains.png";
-	  context.drawImage(spriteImage, 0, 0, _mountImgWidth, _mountImgHeight,
-	    0, this.DIM_Y - _groundImgHeight - (0.80*_mountImgHeight),
-	     this.DIM_X, this.DIM_X*_mountImgHeight/_mountImgWidth);
-	};
-	
-	var _grassyImgHeight = 768;
-	var _grassyImgWidth = 1366;
-	Background.prototype.drawGrassyGround = function(context) {
-	  var spriteImage = new Image(_grassyImgWidth, _grassyImgHeight);
-	  spriteImage.src = "./rsc/image/background-city.png";
-	  context.drawImage(spriteImage, 0, 0, _grassyImgWidth, _grassyImgHeight,
-	    0, this.DIM_Y - this.DIM_X*_grassyImgHeight/_grassyImgWidth,
-	    this.DIM_X, this.DIM_X*_grassyImgHeight/_grassyImgWidth);
-	};
-	
-	module.exports = Background;
-
-
-/***/ },
-/* 9 */
-/***/ function(module, exports) {
-
-	function MovingObject(args) {
-	  this.pos = args.pos;
-	  this.DIM_X = args.DIM_X;
-	  this.DIM_Y = args.DIM_Y;
-	  this.activeState = true;
-	}
-	
-	MovingObject.dist = function(pos1, pos2) {
-	  var dx = pos1[0] - pos2[0];
-	  var dy = pos1[1] - pos2[1];
-	  var dist = Math.sqrt(Math.pow(dx,2) + Math.pow(dy,2));
-	  return dist;
-	};
-	
-	//All moving objects move
-	MovingObject.prototype.move = function() {
-	  this.pos[0] += this.vel[0];
-	  this.pos[1] += this.vel[1];
-	};
-	
-	MovingObject.prototype.accelerate = function(accel) {
-	  this.vel[0] += accel[0];
-	  this.vel[1] += accel[1];
-	  this.radian = this.findRadian();
-	};
-	
-	MovingObject.prototype.isMoving = function() {
-	  return (this.vel[0] > 0) || (this.vel[1] > 0);
-	};
-	
-	MovingObject.prototype.setInactive = function() {
-	  this.activeState = false;
-	};
-	
-	MovingObject.prototype.isActive = function() {
-	  return this.activeState;
-	};
-	
-	MovingObject.prototype.getPosition = function() {
-	  return this.pos.slice();
-	};
-	
-	MovingObject.prototype.findRadian = function() {
-	  if (this.vel[0] > 0 && this.vel[1] > 0) {
-	    //Quadrant 1
-	    return Math.atan(this.vel[1]/this.vel[0]);
-	  } else if (this.vel[0] < 0 && this.vel[1] > 0) {
-	    //Quadrant 2
-	    return (Math.atan(this.vel[1]/this.vel[0])+ Math.PI);
-	  } else if (this.vel[0] < 0 && this.vel[1] < 0) {
-	    //Quadrant 3
-	    return (Math.atan(this.vel[1]/this.vel[0]) + Math.PI);
-	  } else {
-	    //Quadrant 4
-	    return (Math.atan(this.vel[1]/this.vel[0]));
-	  }
-	};
-	
-	MovingObject.prototype.isOutOfBound = function() {
-	  return (this.pos[0] < 0 || this.pos[0] > this.DIM_X) ||
-	    (this.pos[1] < 0 || this.pos[1] > this.DIM_Y);
-	};
-	
-	MovingObject.prototype.checkIsHittingWall = function() {
-	  if (this.pos[0] < 0 || this.pos[0] > this.DIM_X) {
-	    this.vel[0] *= -1;
-	  }
-	  if (this.pos[1] < 0 || this.pos[1] > this.DIM_Y) {
-	    this.vel[1] *= -1;
-	  }
-	};
-	
-	MovingObject.prototype.size = function() {
-	  //waiting to be overriden
-	  return 30;
-	};
-	
-	MovingObject.prototype.isCollidedWith = function(otherObject) {
-	  if (this.isMoving() || otherObject.isMoving()) {
-	    var objectDist = MovingObject.dist(this.pos, otherObject.pos);
-	    var radSum = this.size() + otherObject.size();
-	    return (objectDist < radSum);
-	  } else {
-	    return false;
-	  }
-	};
-	
-	module.exports = MovingObject;
-
-
-/***/ },
-/* 10 */
-/***/ function(module, exports) {
-
-	module.exports = {
-	  inherits: function(ChildClass, ParentClass) {
-	    function Surrogate(){}
-	    Surrogate.prototype = ParentClass.prototype;
-	    ChildClass.prototype = new Surrogate();
-	    ChildClass.prototype.constructor = ChildClass;
-	  },
-	};
-
-
-/***/ },
-/* 11 */,
-/* 12 */
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var MovingObject = __webpack_require__(9);
-	var Util = __webpack_require__(10);
+	var MovingObject = __webpack_require__(6);
+	var Util = __webpack_require__(7);
 	
 	function Bird(pos, DIM_X, DIM_Y) {
 	  MovingObject.call(this, {
@@ -982,6 +1098,9 @@
 	  return offscreenCanvas;
 	};
 	
+	Bird.prototype.getVerticalVelocity = function() {
+	  return this.vel[1];
+	};
 	
 	Bird.prototype.startFlapping = function() {
 	  this.isFlapping = true;
@@ -1012,7 +1131,7 @@
 	  this.vel[0] += accel[0];
 	  this.vel[1] += accel[1];
 	  if (this.isFlapping) {
-	    this.vel[1] -= 0.25;
+	    this.vel[1] -= 0.40;
 	  }
 	};
 	
@@ -1029,7 +1148,7 @@
 	  if (this.vel[0] > 0) {
 	    this.vel[0] = 0;
 	  }
-	  this.vel[0] = -5;
+	  this.vel[0] = -12;
 	};
 	
 	Bird.prototype.moveRight = function() {
@@ -1037,101 +1156,10 @@
 	  if (this.vel[0] < 0) {
 	    this.vel[0] = 0;
 	  }
-	  this.vel[0] = 5;
+	  this.vel[0] = 12;
 	};
 	
 	module.exports = Bird;
-
-
-/***/ },
-/* 13 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var MovingObject = __webpack_require__(9);
-	var Util = __webpack_require__(10);
-	
-	function Pedestrian(pos, DIM_X, DIM_Y) {
-	  MovingObject.call(this, {
-	    pos: pos,
-	    DIM_X: DIM_X,
-	    DIM_Y: DIM_Y
-	  });
-	  this.vel = [5,0];
-	  this.radian = 0;
-	
-	  this.width = 184;
-	  this.height = 325;
-	  this.spriteImage = new Image(this.width, this.height);
-	  this.spriteImage.src = "./rsc/image/pedestrian.png";
-	
-	  this.alive = true;
-	  this.safety = false;
-	  this.sx = 0;
-	  this.isFacingLeft = false;
-	}
-	
-	Util.inherits(Pedestrian, MovingObject);
-	
-	Pedestrian.prototype.draw = function(context) {
-	  var orientedPerson = this.orientateAndCache(this.spriteImage);
-	  context.drawImage(orientedPerson, 0, 0, this.width, this.height,
-	    this.pos[0] - (this.width/4), this.pos[1] - (this.height/4), this.width/4, this.height/4);
-	};
-	
-	var _fullWidth = 1472;
-	Pedestrian.prototype.orientateAndCache = function(img) {
-	  var offscreenCanvas = document.createElement('canvas');
-	  var offscreenCtx = offscreenCanvas.getContext('2d');
-	
-	  offscreenCanvas.width = img.width;
-	  offscreenCanvas.height = img.height;
-	
-	  if (this.isFacingLeft) {
-	    offscreenCtx.translate(img.width, 0);
-	    offscreenCtx.scale(-1, 1);
-	  }
-	  offscreenCtx.drawImage(img, this.sx, 0, img.width, img.height,
-	    0, 0, img.width, img.height);
-	
-	  this.sx += this.width;
-	  if (this.sx === _fullWidth) {
-	    this.sx -= _fullWidth;
-	  }
-	  return offscreenCanvas;
-	};
-	
-	Pedestrian.prototype.setDead = function() {
-	  this.alive = false;
-	};
-	
-	Pedestrian.prototype.setSafety = function() {
-	  this.safety = true;
-	};
-	
-	Pedestrian.prototype.isAlive = function() {
-	  return this.alive;
-	};
-	
-	Pedestrian.prototype.isSaved = function() {
-	  return this.safety;
-	};
-	
-	Pedestrian.prototype.isCollidedWith = function(otherObject) {
-	  if (this.isMoving() || otherObject.isMoving()) {
-	    var objectDist = MovingObject.dist(this.pos, otherObject.pos);
-	    return (objectDist < 100);
-	  } else {
-	    return false;
-	  }
-	};
-	
-	Pedestrian.prototype.updateSafetyStatus = function() {
-	  if (this.pos[0] > this.DIM_X && this.isAlive()) {
-	    this.setSafety();
-	  }
-	};
-	
-	module.exports = Pedestrian;
 
 
 /***/ }
