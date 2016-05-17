@@ -114,7 +114,6 @@
 	};
 	
 	GameView.prototype.pause = function(event) {
-	  debugger
 	  event.preventDefault();
 	  this.isPause = true;
 	  $("#pause").off("click");
