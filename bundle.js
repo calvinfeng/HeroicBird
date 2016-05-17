@@ -70,32 +70,33 @@
 	var Bird = __webpack_require__(11);
 	
 	function GameView(canvas) {
+	  this.canvas = canvas;
 	  this.ctx = canvas.getContext("2d");
 	  this.bird = new Bird([canvas.width/2, 0], canvas.width, canvas.height);
 	  this.game = new Game(canvas.width, canvas.height, this.bird);
 	  this.isPause = true;
+	  this.bestScore = 0;
 	  this.bindKeyHandlers();
 	}
 	
-	GameView.prototype.initInstructions = function() {
-	
-	};
-	
 	GameView.prototype.start = function() {
-	  var self, liveCount, deadCount, speed;
-	
-	  self = this;
+	  var self = this;
 	  this.isPause = false;
 	  this.gameInterval = setInterval(function() {
 	    self.game.step();
 	    self.game.draw(self.ctx);
-	    deadCount = self.game.getDeathToll();
-	    liveCount = self.game.getNumOfLivesSaved();
-	    speed = self.bird.getVerticalVelocity();
-	    self.updateStatus(deadCount, liveCount);
-	    self.updateSpeed(speed);
+	    self.updateStatus();
+	    self.updateSpeed();
+	    self.updateBestScore();
 	    self.checkIfPause();
+	    self.restartIfGameOver();
 	  }, 50);
+	};
+	
+	GameView.prototype.restartIfGameOver = function() {
+	  if (this.game.isGameOver()) {
+	    this.game = new Game(this.canvas.width, this.canvas.height, this.bird);
+	  }
 	};
 	
 	GameView.prototype.checkIfPause = function() {
@@ -104,9 +105,21 @@
 	  }
 	};
 	
+	GameView.prototype.resume = function(event) {
+	  event.preventDefault();
+	  $("#pause").off("click");
+	  $("#pause").text("pause");
+	  $("#pause").on("click", this.pause.bind(this));
+	  this.start();
+	};
+	
 	GameView.prototype.pause = function(event) {
+	  debugger
 	  event.preventDefault();
 	  this.isPause = true;
+	  $("#pause").off("click");
+	  $("#pause").text("resume");
+	  $("#pause").on("click", this.resume.bind(this));
 	};
 	
 	GameView.prototype.bindKeyHandlers = function() {
@@ -128,16 +141,25 @@
 	  });
 	
 	  $("#pause").on("click", this.pause.bind(this));
-	  $("#restart").on("click", this.start.bind(this));
 	};
 	
-	GameView.prototype.updateStatus = function(deadCount, liveCount) {
+	GameView.prototype.updateStatus = function() {
+	  var deadCount = this.game.getDeathToll();
+	  var liveCount = this.game.getNumOfLivesSaved();
 	  $("#death-toll").text("Death toll: " + deadCount);
 	  $("#lives-saved").text("Lives saved: " + liveCount);
 	};
 	
-	GameView.prototype.updateSpeed = function(speed) {
-	  var text = "Veritcal Speed: ";
+	GameView.prototype.updateBestScore = function() {
+	  if (this.bestScore < this.game.getNumOfLivesSaved()) {
+	    this.bestScore = this.game.getNumOfLivesSaved();
+	  }
+	  $("#best-score").text("Best score: " + this.bestScore);
+	};
+	
+	GameView.prototype.updateSpeed = function() {
+	  var speed = this.bird.getVerticalVelocity();
+	  var text = "Veritcal speed: ";
 	  speed *= -1;
 	  $("#vertical-velocity").text(text + Math.round(speed));
 	};
@@ -184,11 +206,14 @@
 	  var i, grd;
 	  ctx.clearRect(0, 0, this.DIM_X, this.DIM_Y);
 	
-	  grd = ctx.createLinearGradient(150.000, 0.000, 150.000, 300.000);
-	  grd.addColorStop(0.000, 'rgba(0, 88, 242, 1.000)');
-	  grd.addColorStop(1.000, 'rgba(0, 179, 224, 1.000)');
-	  ctx.fillStyle = grd;
-	  ctx.fillRect(0, 0, this.DIM_X, this.DIM_Y);
+	  // grd = ctx.createLinearGradient(150.000, 0.000, 150.000, 300.000);
+	  // grd.addColorStop(0.000, 'rgba(0, 88, 242, 1.000)');
+	  // grd.addColorStop(1.000, 'rgba(0, 179, 224, 1.000)');
+	  // ctx.fillStyle = grd;
+	  // ctx.fillRect(0, 0, this.DIM_X, this.DIM_Y);
+	  var skyImage = new Image(this.DIM_X, this.DIM_Y);
+	  skyImage.src = "./rsc/image/blue-sky.png";
+	  ctx.drawImage(skyImage, 0, 0);
 	
 	  this.background.draw(ctx);
 	  this.bird.draw(ctx);
@@ -236,6 +261,10 @@
 	  return this.deadCount;
 	};
 	
+	Game.prototype.isGameOver = function() {
+	  return this.deadCount === 20;
+	};
+	
 	Game.prototype.getNumOfLivesSaved = function() {
 	  return this.saveCount;
 	};
@@ -260,7 +289,6 @@
 	      this.DIM_X, this.DIM_Y));
 	  }
 	};
-	
 	
 	Game.prototype.moveObjects = function() {
 	  this.bird.move();
@@ -287,7 +315,6 @@
 	};
 	
 	Game.prototype.randomPos = function() {
-	  //randomPos is for meteorites;
 	  var randx = Math.floor(Math.random() * this.DIM_X + 1);
 	  return [randx, 0];
 	};
@@ -327,12 +354,15 @@
 	  }
 	};
 	
+	Game.prototype.checkGameOver = function() {
+	
+	};
+	
 	Game.prototype.updateSafetyStatus = function() {
 	  this.pedestrians.forEach(function(person) {
 	    person.updateSafetyStatus();
 	  });
 	};
-	
 	
 	module.exports = Game;
 
