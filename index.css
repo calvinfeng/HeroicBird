@@ -8,6 +8,8 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  background-color: #ffeecc;
+
 }
 
 .main-console {
@@ -22,6 +24,18 @@ body {
   justify-content: center;
   flex-direction: column;
   align-items: center;
+}
+
+.main-console > article > h1 {
+  font-family: Open Sans;
+  font-size: 2em;
+}
+
+.main-console > article > p {
+  margin: 0px 0px 10px 0px;
+  background-color: white;
+  border-radius: 5px;
+  padding: 5px 5px 5px 5px;
 }
 
 #game-canvas {
@@ -39,4 +53,18 @@ body {
 
 .info > div {
   margin: 5px 5px 5px 5px;
+  border: 1px solid black;
+  border-radius: 5px;
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  background-color: white;
+}
+
+.info > button {
+  border-radius: 5px;
+  background-color: white;
+  margin-top: 5px;
+  margin-bottom: 5px;
 }
