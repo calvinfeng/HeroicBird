@@ -66,8 +66,8 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	var Game = __webpack_require__(2);
-	var key = __webpack_require__(10);
-	var Bird = __webpack_require__(11);
+	var key = __webpack_require__(11);
+	var Bird = __webpack_require__(12);
 	
 	function GameView(canvas) {
 	  this.canvas = canvas;
@@ -158,7 +158,7 @@
 	
 	GameView.prototype.updateSpeed = function() {
 	  var speed = this.bird.getVerticalVelocity();
-	  var text = "Veritcal speed: ";
+	  var text = "Vertical speed: ";
 	  speed *= -1;
 	  $("#vertical-velocity").text(text + Math.round(speed));
 	};
@@ -171,10 +171,10 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	var SkyExplosion = __webpack_require__(3);
-	var GroundExplosion = __webpack_require__(4);
-	var Meteorite = __webpack_require__(5);
-	var Pedestrian = __webpack_require__(8);
-	var Background = __webpack_require__(9);
+	var GroundExplosion = __webpack_require__(6);
+	var Meteorite = __webpack_require__(7);
+	var Pedestrian = __webpack_require__(9);
+	var Background = __webpack_require__(10);
 	
 	function Game(canvasWidth, canvasHeight, bird) {
 	  this.DIM_X = canvasWidth;
@@ -368,41 +368,23 @@
 
 /***/ },
 /* 3 */
-/***/ function(module, exports) {
+/***/ function(module, exports, __webpack_require__) {
 
+	var Explosion = __webpack_require__(4);
+	var Util = __webpack_require__(5);
+	
 	function SkyExplosion(pos) {
-	  this.width = 134;
-	  this.height = 134;
-	  this.spriteImage = new Image(134,134);
-	  this.spriteImage.src = "./rsc/image/explosion-sprite.png";
-	  this.activeState = true;
-	  this.pos = pos;
-	  this.sx = 0;
+	  // Classical prototypal inheritance, ES6 has better syntax
+	  Explosion.call(this, {
+	    pos: pos,
+	    width: 134,
+	    height: 134,
+	    fullWidth: 1608,
+	    imageSrc: "./rsc/image/explosion-sprite.png",
+	    audioSrc: "./rsc/sound/sky-explosion.mp3"
+	  });
 	}
-	
-	var _fullWidth = 1608;
-	SkyExplosion.prototype.draw = function(context) {
-	  if (this.sx === 0) {
-	    this.playSound();
-	  }
-	
-	  context.drawImage(this.spriteImage, this.sx, 0, this.width, this.height,
-	    this.pos[0]-(this.width/2), this.pos[1]-(this.height/2), this.width, this.height);
-	
-	  this.sx += 134;
-	  if (this.sx === _fullWidth) {
-	    this.activeState = false;
-	  }
-	};
-	
-	SkyExplosion.prototype.playSound = function() {
-	  var sound = new Audio('./rsc/sound/sky-explosion.mp3');
-	  sound.play();
-	};
-	
-	SkyExplosion.prototype.isActive = function() {
-	  return this.activeState;
-	};
+	Util.inherits(SkyExplosion, Explosion);
 	
 	module.exports = SkyExplosion;
 
@@ -411,49 +393,85 @@
 /* 4 */
 /***/ function(module, exports) {
 
-	function GroundExplosion(pos) {
-	  this.width = 50;
-	  this.height = 128;
-	  this.spriteImage = new Image(50,128);
-	  this.spriteImage.src = "./rsc/image/ground-explosion-sprite.png";
+	function Explosion(args) {
+	  this.width = args.width;
+	  this.height = args.height;
+	  this.fullWidth = args.fullWidth;
+	  this.spriteImage = new Image(this.width, this.height);
+	  this.spriteImage.src = args.imageSrc;
+	  this.audioSrc = args.audioSrc;
+	  this.pos = args.pos;
 	  this.activeState = true;
-	  this.pos = pos;
 	  this.sx = 0;
 	}
 	
-	var _fullWidth = 900;
-	GroundExplosion.prototype.draw = function(context) {
+	Explosion.prototype.draw = function(context) {
 	  if (this.sx === 0) {
 	    this.playSound();
 	  }
-	
 	  context.drawImage(this.spriteImage, this.sx, 0, this.width, this.height,
 	    this.pos[0]-(this.width/2), this.pos[1]-(this.height/2), this.width, this.height);
-	
-	  this.sx += 50;
-	  if (this.sx === _fullWidth) {
+	  this.sx += this.width;
+	  if (this.sx === this.fullWidth) {
 	    this.activeState = false;
 	  }
 	};
 	
-	GroundExplosion.prototype.playSound = function() {
-	  var sound = new Audio('./rsc/sound/ground-explosion.mp3');
+	Explosion.prototype.playSound = function() {
+	  var sound = new Audio(this.audioSrc);
 	  sound.play();
 	};
 	
-	GroundExplosion.prototype.isActive = function() {
+	Explosion.prototype.isActive = function() {
 	  return this.activeState;
 	};
+	
+	module.exports = Explosion;
+
+
+/***/ },
+/* 5 */
+/***/ function(module, exports) {
+
+	module.exports = {
+	  inherits: function(ChildClass, ParentClass) {
+	    function Surrogate(){}
+	    Surrogate.prototype = ParentClass.prototype;
+	    ChildClass.prototype = new Surrogate();
+	    ChildClass.prototype.constructor = ChildClass;
+	  },
+	};
+
+
+/***/ },
+/* 6 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var Explosion = __webpack_require__(4);
+	var Util = __webpack_require__(5);
+	
+	function GroundExplosion(pos) {
+	  // Classical prototypal inheritance, ES6 has better syntax
+	  Explosion.call(this, {
+	    pos: pos,
+	    width: 50,
+	    height: 128,
+	    fullWidth: 900,
+	    imageSrc: "./rsc/image/ground-explosion-sprite.png",
+	    audioSrc: "./rsc/sound/ground-explosion.mp3"
+	  });
+	}
+	Util.inherits(GroundExplosion, Explosion);
 	
 	module.exports = GroundExplosion;
 
 
 /***/ },
-/* 5 */
+/* 7 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var MovingObject = __webpack_require__(6);
-	var Util = __webpack_require__(7);
+	var MovingObject = __webpack_require__(8);
+	var Util = __webpack_require__(5);
 	
 	function Meteorite(pos, DIM_X, DIM_Y) {
 	  MovingObject.call(this, {
@@ -525,7 +543,7 @@
 
 
 /***/ },
-/* 6 */
+/* 8 */
 /***/ function(module, exports) {
 
 	function MovingObject(args) {
@@ -619,25 +637,11 @@
 
 
 /***/ },
-/* 7 */
-/***/ function(module, exports) {
-
-	module.exports = {
-	  inherits: function(ChildClass, ParentClass) {
-	    function Surrogate(){}
-	    Surrogate.prototype = ParentClass.prototype;
-	    ChildClass.prototype = new Surrogate();
-	    ChildClass.prototype.constructor = ChildClass;
-	  },
-	};
-
-
-/***/ },
-/* 8 */
+/* 9 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var MovingObject = __webpack_require__(6);
-	var Util = __webpack_require__(7);
+	var MovingObject = __webpack_require__(8);
+	var Util = __webpack_require__(5);
 	
 	function Pedestrian(pos, DIM_X, DIM_Y) {
 	  MovingObject.call(this, {
@@ -724,7 +728,7 @@
 
 
 /***/ },
-/* 9 */
+/* 10 */
 /***/ function(module, exports) {
 
 	function Background(DIM_X, DIM_Y) {
@@ -768,7 +772,7 @@
 
 
 /***/ },
-/* 10 */
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//     keymaster.js
@@ -1070,11 +1074,11 @@
 
 
 /***/ },
-/* 11 */
+/* 12 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var MovingObject = __webpack_require__(6);
-	var Util = __webpack_require__(7);
+	var MovingObject = __webpack_require__(8);
+	var Util = __webpack_require__(5);
 	
 	function Bird(pos, DIM_X, DIM_Y) {
 	  MovingObject.call(this, {
