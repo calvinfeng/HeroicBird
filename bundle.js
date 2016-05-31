@@ -48,8 +48,8 @@
 	$(function() {
 	  var GameView = __webpack_require__(1);
 	  var canvas = document.getElementById("game-canvas");
-	  canvas.width = $(document).width();
-	  canvas.height = $(document).height();
+	  canvas.width = 1200;
+	  canvas.height = 600;
 	  var gameview = new GameView(canvas);
 	  gameview.start();
 	  // var ctx = canvas.getContext("2d");

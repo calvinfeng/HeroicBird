@@ -8,8 +8,7 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background-color: #ffeecc;
-
+  background-color: #005780;
 }
 
 .main-console {
@@ -29,20 +28,23 @@ body {
 .main-console > article > h1 {
   font-family: Open Sans;
   font-size: 2em;
+  color: white;
 }
 
 .main-console > article > p {
   margin: 0px 0px 10px 0px;
-  background-color: white;
   border-radius: 5px;
   padding: 5px 5px 5px 5px;
+  color: white;
 }
 
 #game-canvas {
   height: 100%;
   width: 100%;
   outline: 1px solid black;
-  margin-top: 10px;
+  max-height: 1200;
+  max-width: 1600;
+  margin: 5px 5px 5px 5px;
 }
 
 .info {
@@ -67,4 +69,8 @@ body {
   background-color: white;
   margin-top: 5px;
   margin-bottom: 5px;
+}
+
+#instruction {
+  color: white;
 }
