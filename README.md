@@ -1,7 +1,7 @@
 # Heroic Bird
 ## Object-oriented JavaScript
 [Heroic Bird live][bird]
-[bird]: calvinfeng.github.io
+[bird]: http://calvinfeng.github.io
 
 ### Class breakdown
 * GameView
