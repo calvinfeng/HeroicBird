@@ -48,16 +48,19 @@
 	$(function() {
 	  var GameView = __webpack_require__(1);
 	  var canvas = document.getElementById("game-canvas");
-	  canvas.width = 1200;
-	  canvas.height = 600;
+	  canvas.width = 1280;
+	  canvas.height = 720;
 	  var gameview = new GameView(canvas);
-	  gameview.start();
-	  // var ctx = canvas.getContext("2d");
-	  // ctx.font = "30px Roboto";
-	  // ctx.fillText("Press Enter to start", canvas.width/2 - 120, canvas.height/2);
-	  // $(document).keypress("enter", function(){
-	  //   gameview.start();
-	  // });
+	
+	  var ctx = canvas.getContext("2d");
+	  var landingPage = new Image(1000, 500);
+	  landingPage.src = "./rsc/image/heroic-bird-landing-page.jpg";
+	  landingPage.onload = function() {
+	    ctx.drawImage(landingPage, 0, 0, canvas.width, canvas.height);
+	  };
+	  $("#music").trigger("play");
+	  $('#music').prop("volume", 0);
+	  $("#music").animate({volume: 1}, 5000);
 	});
 
 
@@ -111,6 +114,7 @@
 	  $("#pause").text("pause");
 	  $("#pause").on("click", this.pause.bind(this));
 	  this.start();
+	  $("#music").trigger("play");
 	};
 	
 	GameView.prototype.pause = function(event) {
@@ -119,10 +123,16 @@
 	  $("#pause").off("click");
 	  $("#pause").text("resume");
 	  $("#pause").on("click", this.resume.bind(this));
+	  $("#music").trigger("pause");
 	};
 	
 	GameView.prototype.bindKeyHandlers = function() {
 	  var self = this;
+	  key('enter', function() {
+	    self.start();
+	    key.unbind('enter');
+	  });
+	
 	  key('space', function() {
 	    self.bird.startFlapping();
 	  });
@@ -205,14 +215,17 @@
 	  var i, grd;
 	  ctx.clearRect(0, 0, this.DIM_X, this.DIM_Y);
 	
-	  // grd = ctx.createLinearGradient(150.000, 0.000, 150.000, 300.000);
-	  // grd.addColorStop(0.000, 'rgba(0, 88, 242, 1.000)');
-	  // grd.addColorStop(1.000, 'rgba(0, 179, 224, 1.000)');
-	  // ctx.fillStyle = grd;
-	  // ctx.fillRect(0, 0, this.DIM_X, this.DIM_Y);
-	  var skyImage = new Image(this.DIM_X, this.DIM_Y);
-	  skyImage.src = "./rsc/image/blue-sky.png";
-	  ctx.drawImage(skyImage, 0, 0);
+	  // Create gradient
+	  grd = ctx.createLinearGradient(226.000, 300.000, 74.000, 0.000);
+	  
+	  // Add colors
+	  grd.addColorStop(0.000, 'rgba(0, 169, 255, 1.000)');
+	  grd.addColorStop(1.000, 'rgba(255, 255, 255, 1.000)');
+	  ctx.fillStyle = grd;
+	  ctx.fillRect(0, 0, this.DIM_X, this.DIM_Y);
+	  // var skyImage = new Image(this.DIM_X, this.DIM_Y);
+	  // skyImage.src = "./rsc/image/blue-sky.png";
+	  // ctx.drawImage(skyImage, 0, 0);
 	
 	  this.background.draw(ctx);
 	  this.bird.draw(ctx);
@@ -285,7 +298,7 @@
 	Game.prototype.addPeople = function() {
 	  while (this.pedestrians.length < 5) {
 	    this.pedestrians.push(new Pedestrian([Math.random()*(-this.DIM_X), this.DIM_Y - 50],
-	      this.DIM_X, this.DIM_Y));
+	    this.DIM_X, this.DIM_Y));
 	  }
 	};
 	

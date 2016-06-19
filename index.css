@@ -12,7 +12,7 @@ body {
 }
 
 .main-console {
-  width: 70%;
+  width: 80%;
 }
 
 .main-console > article {
@@ -29,10 +29,12 @@ body {
   font-family: Open Sans;
   font-size: 2em;
   color: white;
+  margin-top: 0px;
+  margin-bottom: 0px;
 }
 
 .main-console > article > p {
-  margin: 0px 0px 10px 0px;
+  margin: 0px 0px 0px 0px;
   border-radius: 5px;
   padding: 5px 5px 5px 5px;
   color: white;
@@ -42,8 +44,8 @@ body {
   height: 100%;
   width: 100%;
   outline: 1px solid black;
-  max-height: 1200;
-  max-width: 1600;
+  max-height: 960;
+  max-width: 1280;
   margin: 5px 5px 5px 5px;
 }
 
