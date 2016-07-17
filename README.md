@@ -70,3 +70,6 @@ An off-screen canvas was used for performing rotation on moving-objects. HTML 5 
 
 ## Explosions
 Similarly, to create the animation of explosion, sprite sheets were also used. However, explosion does not move and it does not change its angular orientation. The implementation is easier than that of moving-objects.
+
+## Recent UPDATES
+Everything has been translated to ES6, using `class` and `extends` for inheritance

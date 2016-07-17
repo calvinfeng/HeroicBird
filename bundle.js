@@ -44,16 +44,13 @@
 /* 0 */
 /***/ function(module, exports, __webpack_require__) {
 
-	
 	$(function() {
-	  var GameView = __webpack_require__(1);
-	  var canvas = document.getElementById("game-canvas");
-	  canvas.width = 1280;
-	  canvas.height = 720;
-	  var gameview = new GameView(canvas);
-	
-	  var ctx = canvas.getContext("2d");
-	  var landingPage = new Image(1000, 500);
+	  const GameView = __webpack_require__(1);
+	  const canvas = document.getElementById("game-canvas");
+	  canvas.width = 1500; canvas.height = 750;
+	  const gameview = new GameView(canvas);
+	  const landingPage = new Image(1000, 500);
+	  const ctx = canvas.getContext("2d");
 	  landingPage.src = "./rsc/image/heroic-bird-landing-page.jpg";
 	  landingPage.onload = function() {
 	    ctx.drawImage(landingPage, 0, 0, canvas.width, canvas.height);
@@ -68,110 +65,111 @@
 /* 1 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var Game = __webpack_require__(2);
-	var key = __webpack_require__(11);
-	var Bird = __webpack_require__(12);
+	const Game = __webpack_require__(2);
+	const key = __webpack_require__(10);
+	const Bird = __webpack_require__(11);
 	
-	function GameView(canvas) {
-	  this.canvas = canvas;
-	  this.ctx = canvas.getContext("2d");
-	  this.bird = new Bird([canvas.width/2, 0], canvas.width, canvas.height);
-	  this.game = new Game(canvas.width, canvas.height, this.bird);
-	  this.isPause = true;
-	  this.bestScore = 0;
-	  this.bindKeyHandlers();
+	//Bird is required, because key handlers are binded to bird's actions
+	class GameView {
+	  constructor(canvas) {
+	    this.canvas = canvas;
+	    this.ctx = canvas.getContext("2d");
+	    this.bird = new Bird([canvas.width/2, 0], canvas.width, canvas.height);
+	    this.game = new Game(canvas.width, canvas.height, this.bird);
+	    this.isPause = true;
+	    this.bestScore = 0;
+	    this.bindKeyHandlers();
+	  }
+	
+	  start() {
+	    this.isPause = false;
+	    this.gameInterval = setInterval(() => {
+	      this.game.step();
+	      this.game.draw(this.ctx);
+	      this.updateStatus();
+	      this.updateSpeed();
+	      this.updateBestScore();
+	      this.checkIfPause();
+	      this.restartIfGameOver();
+	    }, 50);
+	  }
+	
+	  restartIfGameOver() {
+	    if (this.game.isGameOver()) {
+	      this.game = new Game(this.canvas.width, this.canvas.height, this.bird);
+	    }
+	  }
+	
+	  checkIfPause() {
+	    if (this.isPause) {
+	      clearInterval(this.gameInterval);
+	    }
+	  }
+	
+	  resume(event) {
+	    event.preventDefault();
+	    $("#pause").off("click");
+	    $("#pause").text("pause");
+	    $("#pause").on("click", this.pause.bind(this));
+	    this.start();
+	    $("#music").trigger("play");
+	  }
+	
+	  pause(event) {
+	    event.preventDefault();
+	    this.isPause = true;
+	    $("#pause").off("click");
+	    $("#pause").text("resume");
+	    $("#pause").on("click", this.resume.bind(this));
+	    $("#music").trigger("pause");
+	  }
+	
+	  bindKeyHandlers() {
+	    key('enter', () => {
+	      this.start();
+	      key.unbind('enter');
+	    });
+	
+	    key('space', () => {
+	      this.bird.startFlapping();
+	    });
+	
+	    key('left, a', () => {
+	      this.bird.moveLeft();
+	    });
+	
+	    key('right, d', () => {
+	      this.bird.moveRight();
+	    });
+	
+	    $(document).keyup(() => {
+	      this.bird.stopFlapping();
+	    });
+	
+	    $("#pause").on("click", this.pause.bind(this));
+	  }
+	
+	  updateStatus() {
+	    let deadCount = this.game.getDeathToll();
+	    let liveCount = this.game.getNumOfLivesSaved();
+	    $("#death-toll").text("Death toll: " + deadCount);
+	    $("#lives-saved").text("Lives saved: " + liveCount);
+	  }
+	
+	  updateSpeed() {
+	    let speed = this.bird.getVerticalVelocity();
+	    let text = "Vertical speed: ";
+	    speed *= -1;
+	    $("#vertical-velocity").text(text + Math.round(speed));
+	  }
+	
+	  updateBestScore() {
+	    if (this.bestScore < this.game.getNumOfLivesSaved()) {
+	      this.bestScore = this.game.getNumOfLivesSaved();
+	    }
+	    $("#best-score").text("Best score: " + this.bestScore);
+	  }
 	}
-	
-	GameView.prototype.start = function() {
-	  var self = this;
-	  this.isPause = false;
-	  this.gameInterval = setInterval(function() {
-	    self.game.step();
-	    self.game.draw(self.ctx);
-	    self.updateStatus();
-	    self.updateSpeed();
-	    self.updateBestScore();
-	    self.checkIfPause();
-	    self.restartIfGameOver();
-	  }, 50);
-	};
-	
-	GameView.prototype.restartIfGameOver = function() {
-	  if (this.game.isGameOver()) {
-	    this.game = new Game(this.canvas.width, this.canvas.height, this.bird);
-	  }
-	};
-	
-	GameView.prototype.checkIfPause = function() {
-	  if (this.isPause) {
-	    clearInterval(this.gameInterval);
-	  }
-	};
-	
-	GameView.prototype.resume = function(event) {
-	  event.preventDefault();
-	  $("#pause").off("click");
-	  $("#pause").text("pause");
-	  $("#pause").on("click", this.pause.bind(this));
-	  this.start();
-	  $("#music").trigger("play");
-	};
-	
-	GameView.prototype.pause = function(event) {
-	  event.preventDefault();
-	  this.isPause = true;
-	  $("#pause").off("click");
-	  $("#pause").text("resume");
-	  $("#pause").on("click", this.resume.bind(this));
-	  $("#music").trigger("pause");
-	};
-	
-	GameView.prototype.bindKeyHandlers = function() {
-	  var self = this;
-	  key('enter', function() {
-	    self.start();
-	    key.unbind('enter');
-	  });
-	
-	  key('space', function() {
-	    self.bird.startFlapping();
-	  });
-	
-	  $(document).keyup(function() {
-	    self.bird.stopFlapping();
-	  });
-	
-	  key('left, a', function() {
-	    self.bird.moveLeft();
-	  });
-	
-	  key('right, d', function() {
-	    self.bird.moveRight();
-	  });
-	
-	  $("#pause").on("click", this.pause.bind(this));
-	};
-	
-	GameView.prototype.updateStatus = function() {
-	  var deadCount = this.game.getDeathToll();
-	  var liveCount = this.game.getNumOfLivesSaved();
-	  $("#death-toll").text("Death toll: " + deadCount);
-	  $("#lives-saved").text("Lives saved: " + liveCount);
-	};
-	
-	GameView.prototype.updateBestScore = function() {
-	  if (this.bestScore < this.game.getNumOfLivesSaved()) {
-	    this.bestScore = this.game.getNumOfLivesSaved();
-	  }
-	  $("#best-score").text("Best score: " + this.bestScore);
-	};
-	
-	GameView.prototype.updateSpeed = function() {
-	  var speed = this.bird.getVerticalVelocity();
-	  var text = "Vertical speed: ";
-	  speed *= -1;
-	  $("#vertical-velocity").text(text + Math.round(speed));
-	};
 	
 	module.exports = GameView;
 
@@ -180,202 +178,205 @@
 /* 2 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var SkyExplosion = __webpack_require__(3);
-	var GroundExplosion = __webpack_require__(6);
-	var Meteorite = __webpack_require__(7);
-	var Pedestrian = __webpack_require__(9);
-	var Background = __webpack_require__(10);
+	const SkyExplosion = __webpack_require__(3);
+	const GroundExplosion = __webpack_require__(5);
+	const Meteorite = __webpack_require__(6);
+	const Pedestrian = __webpack_require__(8);
+	const Background = __webpack_require__(9);
 	
-	function Game(canvasWidth, canvasHeight, bird) {
-	  this.DIM_X = canvasWidth;
-	  this.DIM_Y = canvasHeight;
-	  this.meteorites = [];
-	  this.explosions = [];
-	  this.pedestrians = [];
-	  this.bird = bird;
-	  this.addMeteorites();
-	  this.deadCount = 0;
-	  this.saveCount = 0;
-	  this.background = new Background(canvasWidth, canvasHeight);
+	const _gravity = [0, 0.1];
+	class Game {
+	  constructor(canvasWidth, canvasHeight, bird) {
+	    this.DIM_X = canvasWidth;
+	    this.DIM_Y = canvasHeight;
+	    this.background = new Background(canvasWidth, canvasHeight);
+	    this.initObjects(bird);
+	    this.deadCount = 0;
+	    this.saveCount = 0;
+	  }
+	
+	  initObjects(bird) {
+	    this.meteorites = [];
+	    this.explosions = [];
+	    this.pedestrians = [];
+	    this.bird = bird;
+	    this.addMeteorites();
+	  }
+	
+	  step() {
+	    this.checkGroundCollisions();
+	    this.checkSkyCollisions();
+	    this.checkCollisionOnPedestrians();
+	    this.addMeteorites();
+	    this.addPeople();
+	    this.accelObjects();
+	    this.moveObjects();
+	    this.updateSafetyStatus();
+	    this.bird.wrapIfHittingWall();
+	  }
+	
+	  draw(ctx) {
+	    ctx.clearRect(0, 0, this.DIM_X, this.DIM_Y);
+	    // Create gradient & Add colors
+	    let grd = ctx.createLinearGradient(226.000, 300.000, 74.000, 0.000);
+	    grd.addColorStop(0.000, 'rgba(0, 169, 255, 1.000)');
+	    grd.addColorStop(1.000, 'rgba(255, 255, 255, 1.000)');
+	    ctx.fillStyle = grd;
+	    ctx.fillRect(0, 0, this.DIM_X, this.DIM_Y);
+	    //==================================================================
+	    this.background.draw(ctx);
+	    this.bird.draw(ctx);
+	    this.drawExplosions(ctx);
+	    this.drawMeteorites(ctx);
+	    this.drawPedestrians(ctx);
+	  }
+	
+	  drawMeteorites(ctx) {
+	    let i = this.meteorites.length - 1;
+	    while (i >= 0) {
+	      if (this.meteorites[i].isActive()) {
+	        this.meteorites[i].draw(ctx);
+	      } else {
+	        this.meteorites.splice(i, 1);
+	      }
+	      i -=1 ;
+	    }
+	  }
+	
+	  drawPedestrians(ctx) {
+	    let i = this.pedestrians.length - 1;
+	    while (i >= 0) {
+	      if (this.pedestrians[i].isAlive() && this.pedestrians[i].isSaved()) {
+	        this.saveCount += 1;
+	        this.pedestrians.splice(i, 1);
+	      } else if (this.pedestrians[i].isAlive()) {
+	        this.pedestrians[i].draw(ctx);
+	      } else {
+	        this.deadCount += 1;
+	        this.pedestrians.splice(i, 1);
+	      }
+	      i -= 1;
+	    }
+	  }
+	
+	  drawExplosions(ctx) {
+	    let i = this.explosions.length - 1;
+	    while (i >= 0) {
+	      if (this.explosions[i].isActive()) {
+	        this.explosions[i].draw(ctx);
+	      } else {
+	        this.explosions.splice(i, 1);
+	      }
+	      i -= 1;
+	    }
+	  }
+	
+	  allObjects() {
+	    return [].concat(this.meteorites, this.bird);
+	  }
+	
+	  getDeathToll() {
+	    return this.deadCount;
+	  }
+	
+	  isGameOver() {
+	    return this.deadCount === 20;
+	  }
+	
+	  getNumOfLivesSaved() {
+	    return this.saveCount;
+	  }
+	
+	  addGroundExplosion(pos) {
+	    this.explosions.push(new GroundExplosion(pos));
+	  }
+	
+	  addSkyExplosion(pos) {
+	    this.explosions.push(new SkyExplosion(pos));
+	  }
+	
+	  addMeteorites() {
+	    while (this.meteorites.length < 5) {
+	      this.meteorites.push(new Meteorite(this.randomPos(), this.DIM_X, this.DIM_Y));
+	    }
+	  }
+	
+	  addPeople() {
+	    while (this.pedestrians.length < 5) {
+	      this.pedestrians.push(new Pedestrian([Math.random()*(-this.DIM_X), this.DIM_Y - 50],
+	      this.DIM_X, this.DIM_Y));
+	    }
+	  }
+	
+	  moveObjects() {
+	    this.bird.move();
+	    this.meteorites.forEach(function(meteorite) {
+	      if (meteorite.isActive()) {
+	        meteorite.move();
+	      }
+	    });
+	    this.pedestrians.forEach(function(pedestrian) {
+	      if (pedestrian.isAlive()) {
+	        pedestrian.move();
+	      }
+	    });
+	  }
+	
+	  accelObjects() {
+	    this.meteorites.forEach(function(meteorite) {
+	      if (meteorite.isActive()) {
+	        meteorite.accelerate(_gravity);
+	      }
+	    });
+	    this.bird.accelerate(_gravity);
+	  }
+	
+	  randomPos() {
+	    let randx = Math.floor(Math.random() * this.DIM_X + 1);
+	    return [randx, 0];
+	  }
+	
+	  checkGroundCollisions() {
+	    for (let i = 0; i < this.meteorites.length; i++) {
+	      if (this.meteorites[i].isCollidedWithGround() && this.meteorites[i].isActive()) {
+	        this.meteorites[i].setInactive();
+	        this.addGroundExplosion(this.meteorites[i].getPosition());
+	      } else if (this.meteorites[i].isOutOfBound() && this.meteorites[i].isActive()) {
+	        this.meteorites[i].setInactive();
+	      }
+	    }
+	  }
+	
+	  checkSkyCollisions() {
+	    for (let i = 0; i < this.allObjects().length - 1; i++) {
+	      for (let j = i + 1; j < this.allObjects().length; j++) {
+	        if (this.allObjects()[i].isCollidedWith(this.allObjects()[j])) {
+	          this.addSkyExplosion(this.allObjects()[i].getPosition());
+	          this.allObjects()[i].setInactive();
+	          this.allObjects()[j].setInactive();
+	        }
+	      }
+	    }
+	  }
+	
+	  checkCollisionOnPedestrians() {
+	    for (let i = 0; i < this.pedestrians.length; i++) {
+	      for (let j = 0; j < this.meteorites.length; j++) {
+	        if (this.pedestrians[i].isCollidedWith(this.meteorites[j])) {
+	          this.addSkyExplosion(this.pedestrians[i].getPosition());
+	          this.meteorites[j].setInactive();
+	          this.pedestrians[i].setDead();
+	        }
+	      }
+	    }
+	  }
+	
+	  updateSafetyStatus() {
+	    this.pedestrians.forEach(function(person) {
+	      person.updateSafetyStatus();
+	    });
+	  }
 	}
-	
-	Game.prototype.step = function() {
-	  this.checkGroundCollisions();
-	  this.checkSkyCollisions();
-	  this.checkCollisionOnPedestrians();
-	  this.addMeteorites();
-	  this.addPeople();
-	  this.accelObjects();
-	  this.moveObjects();
-	  this.updateSafetyStatus();
-	  this.bird.wrapIfHittingWall();
-	};
-	
-	Game.prototype.draw = function(ctx) {
-	  var i, grd;
-	  ctx.clearRect(0, 0, this.DIM_X, this.DIM_Y);
-	
-	  // Create gradient
-	  grd = ctx.createLinearGradient(226.000, 300.000, 74.000, 0.000);
-	  
-	  // Add colors
-	  grd.addColorStop(0.000, 'rgba(0, 169, 255, 1.000)');
-	  grd.addColorStop(1.000, 'rgba(255, 255, 255, 1.000)');
-	  ctx.fillStyle = grd;
-	  ctx.fillRect(0, 0, this.DIM_X, this.DIM_Y);
-	  // var skyImage = new Image(this.DIM_X, this.DIM_Y);
-	  // skyImage.src = "./rsc/image/blue-sky.png";
-	  // ctx.drawImage(skyImage, 0, 0);
-	
-	  this.background.draw(ctx);
-	  this.bird.draw(ctx);
-	
-	  i = this.meteorites.length - 1;
-	  while (i >= 0) {
-	    if (this.meteorites[i].isActive()) {
-	      this.meteorites[i].draw(ctx);
-	    } else {
-	      this.meteorites.splice(i, 1);
-	    }
-	    i -=1 ;
-	  }
-	
-	  i = this.explosions.length - 1;
-	  while (i >= 0) {
-	    if (this.explosions[i].isActive()) {
-	      this.explosions[i].draw(ctx);
-	    } else {
-	      this.explosions.splice(i, 1);
-	    }
-	    i -= 1;
-	  }
-	
-	  i = this.pedestrians.length - 1;
-	  while (i >= 0) {
-	    if (this.pedestrians[i].isAlive() && this.pedestrians[i].isSaved()) {
-	      this.saveCount += 1;
-	      this.pedestrians.splice(i, 1);
-	    } else if (this.pedestrians[i].isAlive()) {
-	      this.pedestrians[i].draw(ctx);
-	    } else {
-	      this.deadCount += 1;
-	      this.pedestrians.splice(i, 1);
-	    }
-	    i -= 1;
-	  }
-	};
-	
-	Game.prototype.allObjects = function() {
-	  return [].concat(this.meteorites, this.bird);
-	};
-	
-	Game.prototype.getDeathToll = function() {
-	  return this.deadCount;
-	};
-	
-	Game.prototype.isGameOver = function() {
-	  return this.deadCount === 20;
-	};
-	
-	Game.prototype.getNumOfLivesSaved = function() {
-	  return this.saveCount;
-	};
-	
-	Game.prototype.addGroundExplosion = function(pos) {
-	  this.explosions.push(new GroundExplosion(pos));
-	};
-	
-	Game.prototype.addSkyExplosion = function(pos) {
-	  this.explosions.push(new SkyExplosion(pos));
-	};
-	
-	Game.prototype.addMeteorites = function() {
-	  while (this.meteorites.length < 5) {
-	    this.meteorites.push(new Meteorite(this.randomPos(), this.DIM_X, this.DIM_Y));
-	  }
-	};
-	
-	Game.prototype.addPeople = function() {
-	  while (this.pedestrians.length < 5) {
-	    this.pedestrians.push(new Pedestrian([Math.random()*(-this.DIM_X), this.DIM_Y - 50],
-	    this.DIM_X, this.DIM_Y));
-	  }
-	};
-	
-	Game.prototype.moveObjects = function() {
-	  this.bird.move();
-	  this.meteorites.forEach(function(meteorite) {
-	    if (meteorite.isActive()) {
-	      meteorite.move();
-	    }
-	  });
-	  this.pedestrians.forEach(function(pedestrian) {
-	    if (pedestrian.isAlive()) {
-	      pedestrian.move();
-	    }
-	  });
-	};
-	
-	var _gravity = [0, 0.1];
-	Game.prototype.accelObjects = function() {
-	  this.meteorites.forEach(function(meteorite) {
-	    if (meteorite.isActive()) {
-	      meteorite.accelerate(_gravity);
-	    }
-	  });
-	  this.bird.accelerate(_gravity);
-	};
-	
-	Game.prototype.randomPos = function() {
-	  var randx = Math.floor(Math.random() * this.DIM_X + 1);
-	  return [randx, 0];
-	};
-	
-	Game.prototype.checkGroundCollisions = function() {
-	  for (var i = 0; i < this.meteorites.length; i++) {
-	    if (this.meteorites[i].isCollidedWithGround() && this.meteorites[i].isActive()) {
-	      this.meteorites[i].setInactive();
-	      this.addGroundExplosion(this.meteorites[i].getPosition());
-	    } else if (this.meteorites[i].isOutOfBound() && this.meteorites[i].isActive()) {
-	      this.meteorites[i].setInactive();
-	    }
-	  }
-	};
-	
-	Game.prototype.checkSkyCollisions = function() {
-	  for (var i = 0; i < this.allObjects().length - 1; i++) {
-	    for (var j = i + 1; j < this.allObjects().length; j++) {
-	      if (this.allObjects()[i].isCollidedWith(this.allObjects()[j])) {
-	        this.addSkyExplosion(this.allObjects()[i].getPosition());
-	        this.allObjects()[i].setInactive();
-	        this.allObjects()[j].setInactive();
-	      }
-	    }
-	  }
-	};
-	
-	Game.prototype.checkCollisionOnPedestrians = function() {
-	  for (var i = 0; i < this.pedestrians.length; i++) {
-	    for (var j = 0; j < this.meteorites.length; j++) {
-	      if (this.pedestrians[i].isCollidedWith(this.meteorites[j])) {
-	        this.addSkyExplosion(this.pedestrians[i].getPosition());
-	        this.meteorites[j].setInactive();
-	        this.pedestrians[i].setDead();
-	      }
-	    }
-	  }
-	};
-	
-	Game.prototype.checkGameOver = function() {
-	
-	};
-	
-	Game.prototype.updateSafetyStatus = function() {
-	  this.pedestrians.forEach(function(person) {
-	    person.updateSafetyStatus();
-	  });
-	};
-	
 	module.exports = Game;
 
 
@@ -383,21 +384,22 @@
 /* 3 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var Explosion = __webpack_require__(4);
-	var Util = __webpack_require__(5);
+	const Explosion = __webpack_require__(4);
+	const imageSrc = "./rsc/image/explosion-sprite.png";
+	const audioSrc = "./rsc/sound/sky-explosion.mp3";
 	
-	function SkyExplosion(pos) {
-	  // Classical prototypal inheritance, ES6 has better syntax
-	  Explosion.call(this, {
-	    pos: pos,
-	    width: 134,
-	    height: 134,
-	    fullWidth: 1608,
-	    imageSrc: "./rsc/image/explosion-sprite.png",
-	    audioSrc: "./rsc/sound/sky-explosion.mp3"
-	  });
+	class SkyExplosion extends Explosion {
+	  constructor(pos) {
+	    super({
+	      pos: pos,
+	      width: 134,
+	      height: 134,
+	      fullWidth: 1608,
+	      imageSrc: imageSrc,
+	      audioSrc: audioSrc
+	    });
+	  }
 	}
-	Util.inherits(SkyExplosion, Explosion);
 	
 	module.exports = SkyExplosion;
 
@@ -406,386 +408,351 @@
 /* 4 */
 /***/ function(module, exports) {
 
-	function Explosion(args) {
-	  this.width = args.width;
-	  this.height = args.height;
-	  this.fullWidth = args.fullWidth;
-	  this.spriteImage = new Image(this.width, this.height);
-	  this.spriteImage.src = args.imageSrc;
-	  this.audioSrc = args.audioSrc;
-	  this.pos = args.pos;
-	  this.activeState = true;
-	  this.sx = 0;
+	class Explosion {
+	  constructor(args) {
+	    this.width = args.width;
+	    this.height = args.height;
+	    this.fullWidth = args.fullWidth;
+	    this.spriteImage = new Image(this.width, this.height);
+	    this.spriteImage.src = args.imageSrc;
+	    this.audioSrc = args.audioSrc;
+	    this.pos = args.pos;
+	    this.activeState = true;
+	    this.sx = 0;
+	  }
+	
+	  draw(ctx) {
+	    if (this.sx === 0) { this.playSound(); }
+	    ctx.drawImage(this.spriteImage, this.sx, 0, this.width, this.height,
+	      this.pos[0]-(this.width/2), this.pos[1]-(this.height/2), this.width, this.height);
+	    this.sx += this.width;
+	    if (this.sx === this.fullWidth) {
+	      this.activeState = false;
+	    }
+	  }
+	
+	  playSound() {
+	    let sound = new Audio(this.audioSrc);
+	    sound.play();
+	  }
+	
+	  isActive() {
+	    return this.activeState;
+	  }
 	}
-	
-	Explosion.prototype.draw = function(context) {
-	  if (this.sx === 0) {
-	    this.playSound();
-	  }
-	  context.drawImage(this.spriteImage, this.sx, 0, this.width, this.height,
-	    this.pos[0]-(this.width/2), this.pos[1]-(this.height/2), this.width, this.height);
-	  this.sx += this.width;
-	  if (this.sx === this.fullWidth) {
-	    this.activeState = false;
-	  }
-	};
-	
-	Explosion.prototype.playSound = function() {
-	  var sound = new Audio(this.audioSrc);
-	  sound.play();
-	};
-	
-	Explosion.prototype.isActive = function() {
-	  return this.activeState;
-	};
-	
 	module.exports = Explosion;
 
 
 /***/ },
 /* 5 */
-/***/ function(module, exports) {
+/***/ function(module, exports, __webpack_require__) {
 
-	module.exports = {
-	  inherits: function(ChildClass, ParentClass) {
-	    function Surrogate(){}
-	    Surrogate.prototype = ParentClass.prototype;
-	    ChildClass.prototype = new Surrogate();
-	    ChildClass.prototype.constructor = ChildClass;
-	  },
-	};
+	const Explosion = __webpack_require__(4);
+	const imageSrc = "./rsc/image/ground-explosion-sprite.png";
+	const audioSrc = "./rsc/sound/ground-explosion.mp3";
+	
+	class GroundExplosion extends Explosion {
+	  constructor(pos) {
+	    super({
+	      pos: pos,
+	      width: 50,
+	      height: 128,
+	      fullWidth: 900,
+	      imageSrc: imageSrc,
+	      audioSrc: audioSrc
+	    });
+	  }
+	}
+	module.exports = GroundExplosion;
 
 
 /***/ },
 /* 6 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var Explosion = __webpack_require__(4);
-	var Util = __webpack_require__(5);
+	const MovingObject = __webpack_require__(7);
 	
-	function GroundExplosion(pos) {
-	  // Classical prototypal inheritance, ES6 has better syntax
-	  Explosion.call(this, {
-	    pos: pos,
-	    width: 50,
-	    height: 128,
-	    fullWidth: 900,
-	    imageSrc: "./rsc/image/ground-explosion-sprite.png",
-	    audioSrc: "./rsc/sound/ground-explosion.mp3"
-	  });
-	}
-	Util.inherits(GroundExplosion, Explosion);
+	const _width = 512;
+	const _height = 512;
+	const _displaySize = 100;
+	const _fullWidth = 3072;
 	
-	module.exports = GroundExplosion;
-
-
-/***/ },
-/* 7 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var MovingObject = __webpack_require__(8);
-	var Util = __webpack_require__(5);
-	
-	function Meteorite(pos, DIM_X, DIM_Y) {
-	  MovingObject.call(this, {
-	    pos: pos,
-	    DIM_X: DIM_X,
-	    DIM_Y: DIM_Y
-	  });
-	  this.vel = this.randomVel();
-	  this.radian = this.findRadian();
-	
-	  this.width = 512;
-	  this.height = 512;
-	  this.spriteImage = new Image(this.width, this.height);
-	  this.spriteImage.src = "./rsc/image/meteorite-sprite.png";
-	
-	  this.sx = 0;
-	}
-	
-	Util.inherits(Meteorite, MovingObject);
-	
-	var _displaySize = 100;
-	Meteorite.prototype.draw = function(context) {
-	  var rotatedObj = this.rotateAndCache(this.spriteImage);
-	  context.drawImage(rotatedObj, 0, 0, this.width, this.height,
-	    this.pos[0] - (_displaySize/2), this.pos[1] - (_displaySize/2), _displaySize, _displaySize);
-	};
-	
-	var _fullWidth = 3072; // this is the full width of the sprite image
-	Meteorite.prototype.rotateAndCache = function(img) {
-	  var offscreenCanvas = document.createElement('canvas');
-	  var offscreenCtx = offscreenCanvas.getContext('2d');
-	
-	  offscreenCanvas.width = img.width;
-	  offscreenCanvas.height = img.height;
-	
-	  offscreenCtx.translate(img.width/2, img.height/2);
-	  offscreenCtx.rotate(this.radian);
-	  offscreenCtx.drawImage(img, this.sx, 0, img.width, img.height,
-	    (-img.width/2), (-img.height/2), img.width, img.height);
-	  // offscreenCtx.translate(-img.width/2, -img.height/2);
-	  this.sx += this.width;
-	  if (this.sx === _fullWidth) {
-	    this.sx -= _fullWidth;
+	const _spriteImage = new Image(_width, _height);
+	_spriteImage.src = "./rsc/image/meteorite-sprite.png";
+	class Meteorite extends MovingObject {
+	  constructor(pos, DIM_X, DIM_Y) {
+	    super({
+	      pos: pos,
+	      DIM_X: DIM_X,
+	      DIM_Y: DIM_Y
+	    });
+	    this.vel = this.randomVel();
+	    this.radian = this.findRadian();
+	    this.sx = 0;
 	  }
-	  return offscreenCanvas;
-	};
 	
-	Meteorite.prototype.randomVel = function() {
-	  if (this.pos[0] < this.DIM_X/2) {
-	    return [Math.random()*5 + 1, Math.random()*5 + 1];
-	  } else {
-	    return [-(Math.random()*5 + 1), Math.random()*5 + 1];
+	  draw(ctx) {
+	    let rotatedObj = this.rotateAndCache(_spriteImage);
+	    ctx.drawImage(rotatedObj, 0, 0, _width, _height,
+	      this.pos[0] - (_displaySize/2), this.pos[1] - (_displaySize/2), _displaySize, _displaySize);
 	  }
-	};
 	
-	Meteorite.prototype.isCollidedWithGround = function() {
-	  if (this.pos[0] > 0 && this.pos[0] < this.DIM_X) {
-	    if (this.pos[1] >= this.DIM_Y - 100) {
-	      return true;
+	  rotateAndCache(img) {
+	    let offscreenCanvas = document.createElement('canvas');
+	    let offscreenCtx = offscreenCanvas.getContext('2d');
+	
+	    offscreenCanvas.width = img.width;
+	    offscreenCanvas.height = img.height;
+	
+	    offscreenCtx.translate(img.width/2, img.height/2);
+	    offscreenCtx.rotate(this.radian);
+	    offscreenCtx.drawImage(img, this.sx, 0, img.width, img.height,
+	      (-img.width/2), (-img.height/2), img.width, img.height);
+	    // offscreenCtx.translate(-img.width/2, -img.height/2);
+	    this.sx += _width;
+	    if (this.sx === _fullWidth) {
+	      this.sx -= _fullWidth;
+	    }
+	    return offscreenCanvas;
+	  }
+	
+	  randomVel() {
+	    if (this.pos[0] < this.DIM_X/2) {
+	      return [Math.random()*5 + 1, Math.random()*5 + 1];
+	    } else {
+	      return [-(Math.random()*5 + 1), Math.random()*5 + 1];
+	    }
+	  }
+	
+	  isCollidedWithGround() {
+	    if (this.pos[0] > 0 && this.pos[0] < this.DIM_X) {
+	      if (this.pos[1] >= this.DIM_Y - 100) {
+	        return true;
+	      } else {
+	        return false;
+	      }
 	    } else {
 	      return false;
 	    }
-	  } else {
-	    return false;
 	  }
-	};
-	
+	}
 	module.exports = Meteorite;
 
 
 /***/ },
-/* 8 */
+/* 7 */
 /***/ function(module, exports) {
 
-	function MovingObject(args) {
-	  this.pos = args.pos;
-	  this.DIM_X = args.DIM_X;
-	  this.DIM_Y = args.DIM_Y;
-	  this.activeState = true;
+	class MovingObject {
+	  constructor(args) {
+	    this.pos = args.pos;
+	    this.DIM_X = args.DIM_X;
+	    this.DIM_Y = args.DIM_Y;
+	    this.activeState = true;
+	  }
+	
+	  dist(pos1, pos2) {
+	    let dx = pos1[0] - pos2[0];
+	    let dy = pos1[1] - pos2[1];
+	    let dist = Math.sqrt(Math.pow(dx,2) + Math.pow(dy,2));
+	    return dist;
+	  }
+	
+	  //All moving objects move
+	  move() {
+	    this.pos[0] += this.vel[0];
+	    this.pos[1] += this.vel[1];
+	  }
+	
+	  accelerate(accel) {
+	    this.vel[0] += accel[0];
+	    this.vel[1] += accel[1];
+	    this.radian = this.findRadian();
+	  }
+	
+	  isMoving() {
+	    return (this.vel[0] > 0) || (this.vel[1] > 0);
+	  }
+	
+	  setInactive() {
+	    this.activeState = false;
+	  }
+	
+	  isActive() {
+	    return this.activeState;
+	  }
+	
+	  getPosition() {
+	    return this.pos.slice();
+	  }
+	
+	  findRadian() {
+	    if (this.vel[0] > 0 && this.vel[1] > 0) {
+	      //Quadrant 1
+	      return Math.atan(this.vel[1]/this.vel[0]);
+	    } else if (this.vel[0] < 0 && this.vel[1] > 0) {
+	      //Quadrant 2
+	      return (Math.atan(this.vel[1]/this.vel[0])+ Math.PI);
+	    } else if (this.vel[0] < 0 && this.vel[1] < 0) {
+	      //Quadrant 3
+	      return (Math.atan(this.vel[1]/this.vel[0]) + Math.PI);
+	    } else {
+	      //Quadrant 4
+	      return (Math.atan(this.vel[1]/this.vel[0]));
+	    }
+	  }
+	
+	  isOutOfBound() {
+	    return (this.pos[0] < 0 || this.pos[0] > this.DIM_X) ||
+	      (this.pos[1] < 0 || this.pos[1] > this.DIM_Y);
+	  }
+	
+	  checkIsHittingWall() {
+	    if (this.pos[0] < 0 || this.pos[0] > this.DIM_X) {
+	      this.vel[0] *= -1;
+	    }
+	    if (this.pos[1] < 0 || this.pos[1] > this.DIM_Y) {
+	      this.vel[1] *= -1;
+	    }
+	  }
+	
+	  isCollidedWith(otherObject) {
+	    if (this.isMoving() || otherObject.isMoving()) {
+	      let objectDist = this.dist(this.pos, otherObject.pos);
+	      let radSum = this.size() + otherObject.size();
+	      return (objectDist < radSum);
+	    } else {
+	      return false;
+	    }
+	  }
 	}
-	
-	MovingObject.dist = function(pos1, pos2) {
-	  var dx = pos1[0] - pos2[0];
-	  var dy = pos1[1] - pos2[1];
-	  var dist = Math.sqrt(Math.pow(dx,2) + Math.pow(dy,2));
-	  return dist;
-	};
-	
-	//All moving objects move
-	MovingObject.prototype.move = function() {
-	  this.pos[0] += this.vel[0];
-	  this.pos[1] += this.vel[1];
-	};
-	
-	MovingObject.prototype.accelerate = function(accel) {
-	  this.vel[0] += accel[0];
-	  this.vel[1] += accel[1];
-	  this.radian = this.findRadian();
-	};
-	
-	MovingObject.prototype.isMoving = function() {
-	  return (this.vel[0] > 0) || (this.vel[1] > 0);
-	};
-	
-	MovingObject.prototype.setInactive = function() {
-	  this.activeState = false;
-	};
-	
-	MovingObject.prototype.isActive = function() {
-	  return this.activeState;
-	};
-	
-	MovingObject.prototype.getPosition = function() {
-	  return this.pos.slice();
-	};
-	
-	MovingObject.prototype.findRadian = function() {
-	  if (this.vel[0] > 0 && this.vel[1] > 0) {
-	    //Quadrant 1
-	    return Math.atan(this.vel[1]/this.vel[0]);
-	  } else if (this.vel[0] < 0 && this.vel[1] > 0) {
-	    //Quadrant 2
-	    return (Math.atan(this.vel[1]/this.vel[0])+ Math.PI);
-	  } else if (this.vel[0] < 0 && this.vel[1] < 0) {
-	    //Quadrant 3
-	    return (Math.atan(this.vel[1]/this.vel[0]) + Math.PI);
-	  } else {
-	    //Quadrant 4
-	    return (Math.atan(this.vel[1]/this.vel[0]));
-	  }
-	};
-	
-	MovingObject.prototype.isOutOfBound = function() {
-	  return (this.pos[0] < 0 || this.pos[0] > this.DIM_X) ||
-	    (this.pos[1] < 0 || this.pos[1] > this.DIM_Y);
-	};
-	
-	MovingObject.prototype.checkIsHittingWall = function() {
-	  if (this.pos[0] < 0 || this.pos[0] > this.DIM_X) {
-	    this.vel[0] *= -1;
-	  }
-	  if (this.pos[1] < 0 || this.pos[1] > this.DIM_Y) {
-	    this.vel[1] *= -1;
-	  }
-	};
 	
 	MovingObject.prototype.size = function() {
 	  //waiting to be overriden
 	  return 30;
 	};
-	
-	MovingObject.prototype.isCollidedWith = function(otherObject) {
-	  if (this.isMoving() || otherObject.isMoving()) {
-	    var objectDist = MovingObject.dist(this.pos, otherObject.pos);
-	    var radSum = this.size() + otherObject.size();
-	    return (objectDist < radSum);
-	  } else {
-	    return false;
-	  }
-	};
-	
 	module.exports = MovingObject;
 
 
 /***/ },
-/* 9 */
+/* 8 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var MovingObject = __webpack_require__(8);
-	var Util = __webpack_require__(5);
+	const MovingObject = __webpack_require__(7);
 	
-	function Pedestrian(pos, DIM_X, DIM_Y) {
-	  MovingObject.call(this, {
-	    pos: pos,
-	    DIM_X: DIM_X,
-	    DIM_Y: DIM_Y
-	  });
-	  this.vel = [5,0];
-	  this.radian = 0;
+	const _width = 184;
+	const _height = 325;
+	const _fullWidth = 1472;
 	
-	  this.width = 184;
-	  this.height = 325;
-	  this.spriteImage = new Image(this.width, this.height);
-	  this.spriteImage.src = "./rsc/image/pedestrian.png";
+	const _spriteImage = new Image(_width, _height);
+	_spriteImage.src = "./rsc/image/pedestrian.png";
+	class Pedestrian extends MovingObject {
+	  constructor(pos, DIM_X, DIM_Y) {
+	    super({
+	      pos: pos,
+	      DIM_X: DIM_X,
+	      DIM_Y: DIM_Y
+	    });
+	    this.vel = [5,0];
+	    this.radian = 0;
+	    this.alive = true;
+	    this.safety = false;
+	    this.sx = 0;
+	    this.isFacingLeft = false;
+	  }
 	
-	  this.alive = true;
-	  this.safety = false;
-	  this.sx = 0;
-	  this.isFacingLeft = false;
+	  draw(ctx) {
+	    let orientedPerson = this.orientateAndCache(_spriteImage);
+	    ctx.drawImage(orientedPerson, 0, 0, _width, _height,
+	      this.pos[0] - (_width/4), this.pos[1] - (_height/4), _width/4, _height/4);
+	  }
+	
+	  orientateAndCache(img) {
+	    let offscreenCanvas = document.createElement('canvas');
+	    let offscreenCtx = offscreenCanvas.getContext('2d');
+	
+	    offscreenCanvas.width = img.width;
+	    offscreenCanvas.height = img.height;
+	
+	    if (this.isFacingLeft) {
+	      offscreenCtx.translate(img.width, 0);
+	      offscreenCtx.scale(-1, 1);
+	    }
+	    offscreenCtx.drawImage(img, this.sx, 0, img.width, img.height,
+	      0, 0, img.width, img.height);
+	
+	    this.sx += _width;
+	    if (this.sx === _fullWidth) {
+	      this.sx -= _fullWidth;
+	    }
+	    return offscreenCanvas;
+	  }
+	
+	  setDead() {
+	    this.alive = false;
+	  }
+	
+	  setSafety() {
+	    this.safety = true;
+	  }
+	
+	  isAlive() {
+	    return this.alive;
+	  }
+	
+	  isSaved() {
+	    return this.safety;
+	  }
+	
+	  isCollidedWith(otherObject) {
+	    if (this.isMoving() || otherObject.isMoving()) {
+	      let objectDist = this.dist(this.pos, otherObject.pos);
+	      return (objectDist < 65);
+	    } else {
+	      return false;
+	    }
+	  }
+	
+	  updateSafetyStatus() {
+	    if (this.pos[0] > this.DIM_X && this.isAlive()) {
+	      this.setSafety();
+	    }
+	  }
 	}
-	
-	Util.inherits(Pedestrian, MovingObject);
-	
-	Pedestrian.prototype.draw = function(context) {
-	  var orientedPerson = this.orientateAndCache(this.spriteImage);
-	  context.drawImage(orientedPerson, 0, 0, this.width, this.height,
-	    this.pos[0] - (this.width/4), this.pos[1] - (this.height/4), this.width/4, this.height/4);
-	};
-	
-	var _fullWidth = 1472;
-	Pedestrian.prototype.orientateAndCache = function(img) {
-	  var offscreenCanvas = document.createElement('canvas');
-	  var offscreenCtx = offscreenCanvas.getContext('2d');
-	
-	  offscreenCanvas.width = img.width;
-	  offscreenCanvas.height = img.height;
-	
-	  if (this.isFacingLeft) {
-	    offscreenCtx.translate(img.width, 0);
-	    offscreenCtx.scale(-1, 1);
-	  }
-	  offscreenCtx.drawImage(img, this.sx, 0, img.width, img.height,
-	    0, 0, img.width, img.height);
-	
-	  this.sx += this.width;
-	  if (this.sx === _fullWidth) {
-	    this.sx -= _fullWidth;
-	  }
-	  return offscreenCanvas;
-	};
-	
-	Pedestrian.prototype.setDead = function() {
-	  this.alive = false;
-	};
-	
-	Pedestrian.prototype.setSafety = function() {
-	  this.safety = true;
-	};
-	
-	Pedestrian.prototype.isAlive = function() {
-	  return this.alive;
-	};
-	
-	Pedestrian.prototype.isSaved = function() {
-	  return this.safety;
-	};
-	
-	Pedestrian.prototype.isCollidedWith = function(otherObject) {
-	  if (this.isMoving() || otherObject.isMoving()) {
-	    var objectDist = MovingObject.dist(this.pos, otherObject.pos);
-	    return (objectDist < 65);
-	  } else {
-	    return false;
-	  }
-	};
-	
-	Pedestrian.prototype.updateSafetyStatus = function() {
-	  if (this.pos[0] > this.DIM_X && this.isAlive()) {
-	    this.setSafety();
-	  }
-	};
-	
 	module.exports = Pedestrian;
 
 
 /***/ },
-/* 10 */
+/* 9 */
 /***/ function(module, exports) {
 
-	function Background(DIM_X, DIM_Y) {
-	  this.DIM_X = DIM_X;
-	  this.DIM_Y = DIM_Y;
+	const _imgHeight = 768;
+	const _imgWidth = 1366;
+	const spriteImage = new Image(_imgWidth, _imgHeight);
+	
+	spriteImage.src = "./rsc/image/background-city.png";
+	class Background {
+	  constructor(DIM_X, DIM_Y) {
+	    this.DIM_X = DIM_X;
+	    this.DIM_Y = DIM_Y;
+	  }
+	
+	  draw(ctx) {
+	    ctx.drawImage(
+	      spriteImage, 0, 0, _imgWidth, _imgHeight,
+	      0,
+	      this.DIM_Y - this.DIM_X*_imgHeight/_imgWidth,
+	      this.DIM_X,
+	      this.DIM_X*_imgHeight/_imgWidth
+	    );
+	  }
 	}
-	
-	var _imgHeight = 768;
-	var _imgWidth = 1366;
-	Background.prototype.draw = function(context) {
-	  var spriteImage = new Image(_imgWidth, _imgHeight);
-	  spriteImage.src = "./rsc/image/background-city.png";
-	  context.drawImage(spriteImage, 0, 0, _imgWidth, _imgHeight,
-	    0, this.DIM_Y - this.DIM_X*_imgHeight/_imgWidth,
-	    this.DIM_X, this.DIM_X*_imgHeight/_imgWidth);
-	};
-	
-	//Alternative background but it's now deprecated
-	var _groundImgHeight = 74;
-	var _groundImgWidth = 1364;
-	Background.prototype.drawGround = function(context) {
-	  var spriteImage = new Image(_groundImgWidth, _groundImgHeight);
-	  spriteImage.src = "./rsc/image/ground.png";
-	  context.drawImage(spriteImage, 0, 0, _groundImgWidth, _groundImgHeight,
-	    0, this.DIM_Y - _groundImgHeight*0.90, this.DIM_X, this.DIM_X*_groundImgHeight/_groundImgWidth);
-	};
-	
-	var _mountImgHeight = 121;
-	var _mountImgWidth = 1130;
-	Background.prototype.drawMountain = function(context) {
-	  var spriteImage = new Image(_mountImgWidth, _mountImgHeight);
-	  spriteImage.src = "./rsc/image/mountains.png";
-	  context.drawImage(spriteImage, 0, 0, _mountImgWidth, _mountImgHeight,
-	    0, this.DIM_Y - _groundImgHeight - (0.80*_mountImgHeight),
-	     this.DIM_X, this.DIM_X*_mountImgHeight/_mountImgWidth);
-	};
-	
-	
 	
 	module.exports = Background;
 
 
 /***/ },
-/* 11 */
+/* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//     keymaster.js
@@ -1087,124 +1054,121 @@
 
 
 /***/ },
-/* 12 */
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var MovingObject = __webpack_require__(8);
-	var Util = __webpack_require__(5);
+	const MovingObject = __webpack_require__(7);
 	
-	function Bird(pos, DIM_X, DIM_Y) {
-	  MovingObject.call(this, {
-	    pos: pos,
-	    DIM_X: DIM_X,
-	    DIM_Y: DIM_Y
-	  });
-	  this.vel = [0,0];
-	  this.radian = 0;
+	const _width = 98.5;
+	const _height = 66;
+	const _fullWidth = 788;
+	const _spriteImage = new Image(_width, _height);
 	
-	  this.width = 98.5;
-	  this.height = 66;
-	  this.spriteImage = new Image(this.width, this.height);
-	  this.spriteImage.src = "./rsc/image/flappy-bird-sprite.png";
-	
-	  this.sx = 0;
-	  this.isFlapping = false;
-	  this.isFacingLeft = false;
-	}
-	
-	Util.inherits(Bird, MovingObject);
-	
-	var _fullWidth = 788;
-	Bird.prototype.draw = function(context) {
-	  var orientedBird = this.orientateAndCache(this.spriteImage);
-	  context.drawImage(orientedBird, 0, 0, this.width, this.height,
-	    this.pos[0] - (this.width/2), this.pos[1] - (this.height/2) - 10, this.width/2, this.height/2);
-	};
-	
-	Bird.prototype.orientateAndCache = function(img) {
-	  var offscreenCanvas = document.createElement('canvas');
-	  var offscreenCtx = offscreenCanvas.getContext('2d');
-	
-	  offscreenCanvas.width = img.width;
-	  offscreenCanvas.height = img.height;
-	
-	  if (this.isFacingLeft) {
-	    offscreenCtx.translate(img.width, 0);
-	    offscreenCtx.scale(-1, 1);
+	_spriteImage.src = "./rsc/image/flappy-bird-sprite.png";
+	class Bird extends MovingObject {
+	  constructor(pos, DIM_X, DIM_Y) {
+	    super({
+	      pos: pos,
+	      DIM_X: DIM_X,
+	      DIM_Y: DIM_Y
+	    });
+	    this.vel = [0,0];
+	    this.radian = 0;
+	    this.sx = 0;
+	    this.isFlapping = false;
+	    this.isFacingLeft = false;
 	  }
-	  offscreenCtx.drawImage(img, this.sx, 0, img.width, img.height,
-	    0, 0, img.width, img.height);
 	
-	  if (this.isFlapping) {
-	    this.sx += this.width;
-	    if (this.sx === _fullWidth) {
-	      this.sx -= _fullWidth;
+	  draw(ctx) {
+	    let orientedBird = this.orientateAndCache(_spriteImage);
+	    ctx.drawImage(orientedBird, 0, 0, _width, _height,
+	      this.pos[0] - (_width/2), this.pos[1] - (_height/2) - 10, _width/2, _height/2);
+	  }
+	
+	  orientateAndCache(img) {
+	    let offscreenCanvas = document.createElement('canvas');
+	    let offscreenCtx = offscreenCanvas.getContext('2d');
+	
+	    offscreenCanvas.width = img.width;
+	    offscreenCanvas.height = img.height;
+	
+	    if (this.isFacingLeft) {
+	      offscreenCtx.translate(img.width, 0);
+	      offscreenCtx.scale(-1, 1);
+	    }
+	    offscreenCtx.drawImage(img, this.sx, 0, img.width, img.height,
+	      0, 0, img.width, img.height);
+	
+	    if (this.isFlapping) {
+	      this.sx += _width;
+	      if (this.sx === _fullWidth) {
+	        this.sx -= _fullWidth;
+	      }
+	    }
+	    return offscreenCanvas;
+	  }
+	
+	  getVerticalVelocity() {
+	    return this.vel[1];
+	  }
+	
+	  startFlapping() {
+	    this.isFlapping = true;
+	  }
+	
+	  stopFlapping() {
+	    this.isFlapping = false;
+	  }
+	
+	  wrapIfHittingWall() {
+	    if (this.pos[0] - (_width/2) < 0 ) {
+	      this.pos[0] = this.DIM_X;
+	    } else if (this.pos[0] > this.DIM_X) {
+	      this.pos[0] = _width/2;
+	    }
+	
+	    if (this.pos[1] - (_height/2) <= 0) {
+	      this.vel[1] = 0;
+	      this.pos[1] = (_height/2);
+	    } else if (this.pos[1] + (_height/2) >= this.DIM_Y) {
+	      this.vel[0] = 0;
+	      this.vel[1] = 0;
+	      this.pos[1] = this.DIM_Y - (_height/2);
 	    }
 	  }
-	  return offscreenCanvas;
-	};
 	
-	Bird.prototype.getVerticalVelocity = function() {
-	  return this.vel[1];
-	};
-	
-	Bird.prototype.startFlapping = function() {
-	  this.isFlapping = true;
-	};
-	
-	Bird.prototype.stopFlapping = function() {
-	  this.isFlapping = false;
-	};
-	
-	Bird.prototype.wrapIfHittingWall = function() {
-	  if (this.pos[0] - (this.width/2) < 0 ) {
-	    this.pos[0] = this.pos[0] + this.DIM_X;
-	  } else if (this.pos[0] + (this.width/2) > this.DIM_X) {
-	    this.pos[0] = this.pos[0] % this.DIM_X;
+	  accelerate(accel) {
+	    this.vel[0] += accel[0];
+	    this.vel[1] += accel[1];
+	    if (this.isFlapping) {
+	      this.vel[1] -= 0.40;
+	    }
 	  }
 	
-	  if (this.pos[1] - (this.height/2) <= 0) {
-	    this.vel[1] = 0;
-	    this.pos[1] = (this.height/2);
-	  } else if (this.pos[1] + (this.height/2) >= this.DIM_Y) {
-	    this.vel[0] = 0;
-	    this.vel[1] = 0;
-	    this.pos[1] = this.DIM_Y - (this.height/2);
+	  setFaceLeft() {
+	    this.isFacingLeft = true;
 	  }
-	};
 	
-	Bird.prototype.accelerate = function(accel) {
-	  this.vel[0] += accel[0];
-	  this.vel[1] += accel[1];
-	  if (this.isFlapping) {
-	    this.vel[1] -= 0.40;
+	  setFaceRight() {
+	    this.isFacingLeft = false;
 	  }
-	};
 	
-	Bird.prototype.setFaceLeft = function() {
-	  this.isFacingLeft = true;
-	};
-	
-	Bird.prototype.setFaceRight = function() {
-	  this.isFacingLeft = false;
-	};
-	
-	Bird.prototype.moveLeft = function() {
-	  this.setFaceLeft();
-	  if (this.vel[0] > 0) {
-	    this.vel[0] = 0;
+	  moveLeft() {
+	    this.setFaceLeft();
+	    if (this.vel[0] > 0) {
+	      this.vel[0] = 0;
+	    }
+	    this.vel[0] = -12;
 	  }
-	  this.vel[0] = -12;
-	};
 	
-	Bird.prototype.moveRight = function() {
-	  this.setFaceRight();
-	  if (this.vel[0] < 0) {
-	    this.vel[0] = 0;
+	  moveRight() {
+	    this.setFaceRight();
+	    if (this.vel[0] < 0) {
+	      this.vel[0] = 0;
+	    }
+	    this.vel[0] = 12;
 	  }
-	  this.vel[0] = 12;
-	};
-	
+	}
 	module.exports = Bird;
 
 
